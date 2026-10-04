@@ -524,7 +524,7 @@
         wavesurfer = WaveSurfer.create({
           container: '#waveform', waveColor: '#475569', progressColor: '#6366f1',
           cursorColor: '#f43f5e', cursorWidth: 2, height: 120, normalize: true,
-          plugins: [ wsRegions, WaveSurfer.Timeline.create({ container: '#wave-timeline', height: 20 }) ]
+          plugins: [ wsRegions, WaveSurfer.Timeline.create({ height: 20 }) ]
         });
 
         wavesurfer.on('ready', () => {
