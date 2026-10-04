@@ -15,6 +15,10 @@
   <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
   <!-- LameJS for MP3 encoding -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+  <!-- JSZip for exporting multiple files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- SortableJS for Drag & Drop reordering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 
   <style>
     /* Custom Scrollbar for Waveform & Lists */
@@ -37,6 +41,9 @@
     
     /* Drag & Drop Highlight */
     .drag-over { border-color: #6366f1 !important; background-color: rgba(79, 70, 229, 0.1) !important; }
+    
+    /* Sortable Ghost Element Styling */
+    .sortable-ghost { opacity: 0.4; background-color: #1e293b; border: 2px dashed #6366f1; }
     
     /* Tab Transitions */
     .tab-content { display: none; animation: fadeIn 0.3s ease; }
@@ -168,10 +175,28 @@
           </div>
         </div>
 
+        <!-- Add to Cut List Button -->
+        <div class="flex justify-center">
+          <button id="btn-add-cut" class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-sm text-white shadow-lg transition-transform active:scale-95">
+            <i class="fa-solid fa-plus"></i> Thêm vùng chọn vào danh sách
+          </button>
+        </div>
+
+        <!-- Cut List Display -->
+        <div id="cut-list-container" class="hidden bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xl space-y-3">
+          <div class="flex justify-between items-center pb-2 border-b border-slate-800/80">
+            <h3 class="text-sm font-bold text-slate-200"><i class="fa-solid fa-list-ul text-indigo-400 mr-2"></i>Danh sách đoạn cắt</h3>
+            <span id="cut-count-badge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <ul id="cut-list-items" class="space-y-2 max-h-48 overflow-y-auto pr-2">
+            <!-- List items injected via JS -->
+          </ul>
+        </div>
+
         <!-- Export Toolbar -->
         <div class="flex flex-col lg:flex-row justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
           <div class="flex flex-wrap gap-2">
-            <button id="btn-play-pause" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium"><i class="fa-solid fa-play text-indigo-400" id="play-icon"></i> <span id="play-text">Phát tất cả</span></button>
+            <button id="btn-play-pause" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium"><i class="fa-solid fa-play text-indigo-400" id="play-icon"></i> <span id="play-text">Phát / Tạm dừng</span></button>
             <button id="btn-play-region" class="flex items-center gap-2 px-4 py-2 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded-xl text-sm"><i class="fa-solid fa-repeat"></i> Nghe vùng chọn</button>
             <button id="btn-stop" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center"><i class="fa-solid fa-stop"></i></button>
           </div>
@@ -182,7 +207,7 @@
               <option value="mp3-192">MP3 (192 kbps)</option>
               <option value="mp3-128">MP3 (128 kbps)</option>
             </select>
-            <button id="btn-export-cut" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-sm text-white shadow-lg"><i class="fa-solid fa-download"></i> Cắt & Tải về</button>
+            <button id="btn-export-cut" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-sm text-white shadow-lg"><i class="fa-solid fa-file-zipper"></i> Tải tất cả (ZIP)</button>
           </div>
         </div>
       </main>
@@ -199,7 +224,7 @@
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
           <div>
             <h2 class="text-lg font-bold text-slate-200">Danh sách tệp tin cần ghép</h2>
-            <p class="text-sm text-slate-400">Các tệp sẽ được ghép nối tiếp nhau từ trên xuống dưới.</p>
+            <p class="text-sm text-slate-400">Kéo thả để sắp xếp lại thứ tự. Các tệp sẽ được nối tiếp từ trên xuống.</p>
           </div>
           <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium text-sm shadow-md transition">
             <i class="fa-solid fa-plus"></i> Thêm tệp
@@ -377,6 +402,10 @@
 
     // --- TRIMMER LOGIC ---
     let wavesurfer = null, wsRegions = null, activeRegion = null, originalAudioBuffer = null;
+    let cutItems = [];
+    let cutIdCounter = 1;
+    let currentCutListener = null;
+
     const inStart = document.getElementById('input-start-time');
     const inEnd = document.getElementById('input-end-time');
     const regDur = document.getElementById('region-duration');
@@ -402,6 +431,83 @@
     document.getElementById('btn-end-minus').onclick = () => { inEnd.value = Math.max(0, parseFloat(inEnd.value)-0.1).toFixed(3); updateRegion(); };
     document.getElementById('btn-end-plus').onclick = () => { inEnd.value = (parseFloat(inEnd.value)+0.1).toFixed(3); updateRegion(); };
 
+    // --- Cut List Logic ---
+    const cutListContainer = document.getElementById('cut-list-container');
+    const cutListItems = document.getElementById('cut-list-items');
+    const cutCountBadge = document.getElementById('cut-count-badge');
+
+    const renderCutList = () => {
+      if (cutItems.length === 0) {
+        cutListContainer.classList.add('hidden');
+        return;
+      }
+      cutListContainer.classList.remove('hidden');
+      cutCountBadge.textContent = cutItems.length;
+      cutListItems.innerHTML = '';
+      cutItems.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = "flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 transition";
+        li.innerHTML = `
+          <div class="flex items-center gap-3 w-full max-w-[65%] sm:max-w-[75%]">
+            <span class="w-6 h-6 flex-shrink-0 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center text-xs font-bold">${index + 1}</span>
+            <div class="flex-1 w-full mr-2">
+              <input type="text" value="${item.name}" onchange="updateCutName('${item.id}', this.value)" class="text-sm font-medium text-slate-200 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg px-2 py-1 w-full focus:outline-none focus:border-indigo-500 mb-1 transition-colors" placeholder="Nhập tên đoạn (VD: Nhạc chuông)">
+              <span class="text-xs text-slate-400 font-mono block">${formatTimeDetailed(item.start)} - ${formatTimeDetailed(item.end)}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="playCut(${item.start}, ${item.end})" class="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition" title="Nghe thử"><i class="fa-solid fa-play"></i></button>
+            <button onclick="removeCut('${item.id}')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition" title="Xóa"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        `;
+        cutListItems.appendChild(li);
+      });
+    };
+
+    window.updateCutName = (id, newName) => {
+      const item = cutItems.find(i => i.id === id);
+      if (item) {
+        item.name = newName.trim() || `Đoạn ${cutItems.indexOf(item) + 1}`;
+      }
+    };
+
+    window.playCut = (start, end) => {
+      if(wavesurfer) {
+        if(currentCutListener) wavesurfer.un('timeupdate', currentCutListener);
+        wavesurfer.setTime(start);
+        wavesurfer.play();
+        currentCutListener = (t) => {
+          if (t >= end) {
+            wavesurfer.pause();
+            wavesurfer.un('timeupdate', currentCutListener);
+            currentCutListener = null;
+          }
+        };
+        wavesurfer.on('timeupdate', currentCutListener);
+      }
+    };
+
+    window.removeCut = (id) => {
+      cutItems = cutItems.filter(item => item.id !== id);
+      renderCutList();
+    };
+
+    document.getElementById('btn-add-cut').onclick = () => {
+      if (!activeRegion) return showToast("Chưa có vùng chọn!", true);
+      const start = activeRegion.start;
+      const end = activeRegion.end;
+      if (end - start < 0.1) return showToast("Vùng chọn quá ngắn!", true);
+      
+      cutItems.push({
+        id: 'cut_' + Date.now(),
+        name: `Đoạn ${cutIdCounter++}`,
+        start: start,
+        end: end
+      });
+      renderCutList();
+      showToast("Đã thêm vào danh sách cắt!");
+    };
+
     async function loadTrimFile(file) {
       if (!file) return;
       currentFileName = file.name.replace(/\.[^/.]+$/, "");
@@ -424,6 +530,10 @@
         wavesurfer.on('ready', () => {
           document.getElementById('trim-track-meta').textContent = `Thời lượng: ${formatTimeDetailed(wavesurfer.getDuration())} | ${originalAudioBuffer.sampleRate}Hz`;
           wsRegions.clearRegions();
+          cutItems = []; // Reset cut list when new file loads
+          cutIdCounter = 1;
+          renderCutList();
+          
           activeRegion = wsRegions.addRegion({ start: 0, end: Math.min(5, wavesurfer.getDuration()), color: 'rgba(99, 102, 241, 0.28)', drag: true, resize: true });
           syncInputs(activeRegion);
           
@@ -465,49 +575,96 @@
     document.getElementById('btn-play-region').onclick = () => { if(activeRegion) activeRegion.play(); };
     document.getElementById('btn-stop').onclick = () => { if(wavesurfer) { wavesurfer.stop(); wavesurfer.setTime(0); } };
     
-    // Export Trim
+    // Export Trim (ZIP MULTIPLE FILES)
     document.getElementById('btn-export-cut').onclick = async () => {
-      if(!originalAudioBuffer || !activeRegion) return showToast("Chưa có vùng chọn!", true);
-      
-      const sRate = originalAudioBuffer.sampleRate;
-      const startOffset = Math.floor(activeRegion.start * sRate);
-      const endOffset = Math.floor(activeRegion.end * sRate);
-      const frames = Math.max(0, endOffset - startOffset);
-      if(frames === 0) return showToast("Vùng chọn quá ngắn!", true);
-
-      const actx = getAudioContext();
-      const slicedBuf = actx.createBuffer(originalAudioBuffer.numberOfChannels, frames, sRate);
-      for(let ch=0; ch<originalAudioBuffer.numberOfChannels; ch++){
-        const src = originalAudioBuffer.getChannelData(ch);
-        const dst = slicedBuf.getChannelData(ch);
-        for(let i=0; i<frames; i++) dst[i] = src[startOffset + i];
-      }
+      if(!originalAudioBuffer) return showToast("Chưa tải file âm thanh!", true);
+      if(cutItems.length === 0) return showToast("Danh sách cắt trống! Hãy thêm ít nhất 1 đoạn.", true);
 
       const format = document.getElementById('trim-export-format').value;
-      toggleLoading(true, "Đang xử lý xuất file...", "Xin vui lòng chờ");
+      const isWav = format === 'wav';
+      const ext = isWav ? 'wav' : 'mp3';
+      const kbps = isWav ? 0 : parseInt(format.split('-')[1]);
       
-      setTimeout(() => { // delay for UI
+      toggleLoading(true, "Đang chuẩn bị xuất...", "Vui lòng chờ");
+      
+      setTimeout(async () => {
         try {
-          let blob = null, ext = 'wav';
-          if(format === 'wav') blob = encodeAudioBufferToWav(slicedBuf);
-          else {
-            const kbps = parseInt(format.split('-')[1]);
-            blob = encodeAudioBufferToMp3(slicedBuf, kbps);
-            ext = 'mp3';
+          const zip = new JSZip();
+          const sRate = originalAudioBuffer.sampleRate;
+          const actx = getAudioContext();
+
+          // Loop through selected regions
+          for (let i = 0; i < cutItems.length; i++) {
+            const item = cutItems[i];
+            document.getElementById('loading-sub-text').textContent = `Đang xử lý ${item.name} (${i + 1}/${cutItems.length})...`;
+            
+            // Allow UI to paint the updated subtext
+            await new Promise(res => setTimeout(res, 50)); 
+
+            const startOffset = Math.floor(item.start * sRate);
+            const endOffset = Math.floor(item.end * sRate);
+            const frames = Math.max(0, endOffset - startOffset);
+            
+            const slicedBuf = actx.createBuffer(originalAudioBuffer.numberOfChannels, frames, sRate);
+            for(let ch = 0; ch < originalAudioBuffer.numberOfChannels; ch++) {
+              const src = originalAudioBuffer.getChannelData(ch);
+              const dst = slicedBuf.getChannelData(ch);
+              for(let j = 0; j < frames; j++) dst[j] = src[startOffset + j];
+            }
+
+            let blob;
+            if(isWav) {
+              blob = encodeAudioBufferToWav(slicedBuf);
+            } else {
+              blob = encodeAudioBufferToMp3(slicedBuf, kbps);
+            }
+            
+            // Add file to ZIP archive
+            zip.file(`${currentFileName}_${item.name.replace(/\s+/g, '_')}.${ext}`, blob);
           }
-          downloadBlob(blob, `${currentFileName}_cut.${ext}`);
-          showToast("Đã xuất file thành công!");
+
+          document.getElementById('loading-sub-text').textContent = "Đang nén file ZIP...";
+          await new Promise(res => setTimeout(res, 50));
+
+          // Generate ZIP
+          const zipBlob = await zip.generateAsync({type: "blob"});
+          downloadBlob(zipBlob, `${currentFileName}_cuts.zip`);
+          showToast("Đã tải xong file ZIP!");
+
         } catch(e) {
-          showToast("Lỗi xuất file!", true);
+          console.error(e);
+          showToast("Lỗi trong quá trình xuất file ZIP!", true);
+        } finally {
+          toggleLoading(false);
         }
-        toggleLoading(false);
-      }, 50);
+      }, 100);
     };
 
     // --- MERGER LOGIC ---
     let mergeFilesArray = [];
     const mergeListEl = document.getElementById('merge-file-list');
     const mergeDropZone = document.getElementById('merge-drop-zone');
+    let sortableInstance = null;
+
+    const initSortable = () => {
+      if(sortableInstance) sortableInstance.destroy();
+      sortableInstance = new Sortable(mergeListEl, {
+        animation: 150,
+        handle: '.drag-handle',
+        ghostClass: 'sortable-ghost',
+        onEnd: function (evt) {
+          // Sync internal array with DOM reordering
+          const movedItem = mergeFilesArray.splice(evt.oldIndex, 1)[0];
+          mergeFilesArray.splice(evt.newIndex, 0, movedItem);
+          
+          // Fix the displayed numeric index tags (1, 2, 3...)
+          const listItems = mergeListEl.querySelectorAll('li');
+          listItems.forEach((li, index) => {
+            li.querySelector('.index-badge').textContent = index + 1;
+          });
+        }
+      });
+    };
 
     const renderMergeList = () => {
       if(mergeFilesArray.length === 0) {
@@ -521,28 +678,22 @@
       
       mergeFilesArray.forEach((file, idx) => {
         const li = document.createElement('li');
+        // Added data-id to link DOM with specific file if needed later
         li.className = "flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 transition";
         li.innerHTML = `
-          <div class="flex items-center gap-3 overflow-hidden">
-            <span class="w-7 h-7 flex-shrink-0 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center text-xs font-bold">${idx + 1}</span>
+          <div class="flex items-center gap-3 overflow-hidden w-full">
+            <i class="fa-solid fa-grip-lines text-slate-500 cursor-grab hover:text-slate-300 drag-handle p-2" title="Kéo để sắp xếp"></i>
+            <span class="index-badge w-7 h-7 flex-shrink-0 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center text-xs font-bold">${idx + 1}</span>
             <i class="fa-solid fa-music text-indigo-400"></i>
             <span class="text-sm font-medium truncate text-slate-200" title="${file.name}">${file.name}</span>
           </div>
           <div class="flex items-center gap-1">
-            <button onclick="moveMergeItem(${idx}, -1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-300 transition disabled:opacity-30 disabled:hover:bg-slate-800" ${idx === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
-            <button onclick="moveMergeItem(${idx}, 1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-300 transition disabled:opacity-30 disabled:hover:bg-slate-800" ${idx === mergeFilesArray.length-1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
             <button onclick="removeMergeItem(${idx})" class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition ml-2"><i class="fa-solid fa-trash-can"></i></button>
           </div>
         `;
         mergeListEl.appendChild(li);
       });
-    };
-
-    window.moveMergeItem = (idx, dir) => {
-      const newIdx = idx + dir;
-      if(newIdx < 0 || newIdx >= mergeFilesArray.length) return;
-      [mergeFilesArray[idx], mergeFilesArray[newIdx]] = [mergeFilesArray[newIdx], mergeFilesArray[idx]];
-      renderMergeList();
+      initSortable();
     };
 
     window.removeMergeItem = (idx) => {
