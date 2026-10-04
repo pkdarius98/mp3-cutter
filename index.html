@@ -23,24 +23,54 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 
   <style>
-    /* Custom Scrollbar */
-    ::-webkit-scrollbar { height: 8px; width: 8px; }
-    ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
-    
-    /* Range Slider Styling */
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      height: 16px; width: 16px;
-      border-radius: 50%;
-      background: #6366f1;
-      cursor: pointer;
-      box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
-      transition: transform 0.1s ease;
+    /* Custom Scrollbar Modern - Applies to the main document */
+    ::-webkit-scrollbar { height: 10px; width: 10px; }
+    ::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; } /* slate-900 */
+    ::-webkit-scrollbar-thumb { 
+      background: #4f46e5; /* indigo-600 */
+      border-radius: 8px; 
+      border: 2px solid #0f172a; 
     }
-    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    ::-webkit-scrollbar-thumb:hover { background: #6366f1; /* indigo-500 */ }
     
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #4f46e5 #0f172a;
+    }
+    
+    /* Range Slider (Zoom Input) Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+    input[type=range]:focus { outline: none; }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: #334155; /* slate-700 */
+      border-radius: 9999px;
+      transition: background 0.2s ease;
+    }
+    input[type=range]:hover::-webkit-slider-runnable-track { background: #475569; /* slate-600 */ }
+    input[type=range]::-webkit-slider-thumb {
+      height: 18px; 
+      width: 18px;
+      border-radius: 50%;
+      background: #6366f1; /* indigo-500 */
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -6px;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.5), inset 0 0 0 2px #312e81;
+      transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { 
+      transform: scale(1.15); 
+      background: #818cf8; /* indigo-400 */
+      box-shadow: 0 0 16px rgba(129, 140, 248, 0.6), inset 0 0 0 2px #3730a3;
+    }
+
     /* UI States */
     .drag-over { border-color: #6366f1 !important; background-color: rgba(79, 70, 229, 0.1) !important; }
     .sortable-ghost { opacity: 0.4; background-color: #1e293b; border: 2px dashed #6366f1; }
@@ -48,11 +78,7 @@
     .tab-content.active { display: block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* WaveSurfer internal fixes */
-    #waveform {
-      width: 100%;
-      position: relative;
-    }
+    #waveform { width: 100%; position: relative; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8 antialiased selection:bg-indigo-600 selection:text-white">
@@ -132,7 +158,6 @@
               <i class="fa-regular fa-clock text-indigo-400"></i> Hiện tại:
               <span id="trim-current-time" class="text-indigo-300 font-semibold">00:00:00.000</span>
             </div>
-            <!-- Delete/Clear File Button -->
             <button onclick="closeTrimFile()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition" title="Xóa và chọn file khác">
               <i class="fa-solid fa-trash-can"></i>
             </button>
@@ -567,18 +592,38 @@
             WaveSurfer.Timeline.create({ 
               height: 20,
               style: { fontSize: '12px', color: '#6b7280' }
-              // FIXED: No container specified here to prevent timeline overflow bugs
             }) 
           ]
         });
 
+        // HACK: Can thiệp trực tiếp vào Shadow DOM của WaveSurfer để sửa lỗi thanh cuộn mặc định của OS
         wavesurfer.on('ready', () => {
+          const wsContainer = document.getElementById('waveform');
+          if (wsContainer && wsContainer.shadowRoot) {
+            const shadowStyle = document.createElement('style');
+            shadowStyle.textContent = `
+              ::-webkit-scrollbar { height: 10px; width: 10px; }
+              ::-webkit-scrollbar-track { background: #0f172a; border-radius: 8px; }
+              ::-webkit-scrollbar-thumb { 
+                background: #4f46e5; 
+                border-radius: 8px; 
+                border: 2px solid #0f172a; 
+              }
+              ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+              * {
+                scrollbar-width: thin;
+                scrollbar-color: #4f46e5 #0f172a;
+              }
+            `;
+            wsContainer.shadowRoot.appendChild(shadowStyle);
+          }
+          
           const duration = wavesurfer.getDuration();
           document.getElementById('trim-track-meta').textContent = `Thời lượng: ${formatTimeDetailed(duration)} | ${originalAudioBuffer.sampleRate}Hz`;
           wsRegions.clearRegions();
           cutItems = []; cutIdCounter = 1; renderCutList();
           
-          // REQUIRED LOGIC: Default 10 seconds exactly at the START (0s)
+          // Yêu cầu: Vùng chọn mặc định từ 0 giây tới 10 giây (hoặc ít hơn nếu file ngắn)
           const regionDuration = Math.min(10, duration);
           const start = 0;
           const end = regionDuration;
