@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audio Studio Pro - Cắt & Ghép Nhạc Trực Tuyến</title>
+  <title>Audio Studio Pro - Cắt & Ghép Nhạc</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
   <!-- WaveSurfer.js v7 and plugins -->
   <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
   <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
   <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
+  
   <!-- LameJS for MP3 encoding -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
   <!-- JSZip for exporting multiple files -->
@@ -56,7 +58,6 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8 antialiased selection:bg-indigo-600 selection:text-white">
 
   <div class="w-full max-w-5xl mx-auto space-y-6">
-    <!-- Header & Navigation -->
     <header class="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-800">
       <div class="flex items-center gap-3">
         <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -100,11 +101,10 @@
       <p id="toast-text" class="text-sm text-slate-200"></p>
     </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 1: CẮT NHẠC (TRIMMER)                  -->
-    <!-- ========================================== -->
+    <!-- TAB 1: CẮT NHẠC (TRIMMER) -->
     <div id="tab-trim" class="tab-content active space-y-6">
-      <!-- Empty state notice & Drop zone -->
+      
+      <!-- Empty state drop zone -->
       <div id="trim-drop-zone" class="relative border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-900/40 rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition overflow-hidden min-h-[220px]">
         <div class="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mb-3 text-indigo-400">
           <i class="fa-solid fa-cloud-arrow-up text-3xl"></i>
@@ -124,13 +124,13 @@
             <i class="fa-solid fa-file-audio text-indigo-400 text-xl"></i>
             <div>
               <span id="trim-track-name" class="font-medium text-sm text-slate-200 block truncate max-w-[200px] sm:max-w-md">song.mp3</span>
-              <span id="trim-track-meta" class="text-xs text-slate-400 font-mono">Thời lượng: 00:00.000</span>
+              <span id="trim-track-meta" class="text-xs text-slate-400 font-mono">Thời lượng: 00:00:00.000</span>
             </div>
           </div>
           <div class="flex items-center gap-3">
             <div class="flex items-center gap-2 text-xs text-slate-400 font-mono bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
               <i class="fa-regular fa-clock text-indigo-400"></i> Hiện tại:
-              <span id="trim-current-time" class="text-indigo-300 font-semibold">00:00.000</span>
+              <span id="trim-current-time" class="text-indigo-300 font-semibold">00:00:00.000</span>
             </div>
             <!-- Delete/Clear File Button -->
             <button onclick="closeTrimFile()" class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition" title="Xóa và chọn file khác">
@@ -164,19 +164,19 @@
             <div class="flex justify-between text-xs text-slate-400 font-medium"><span>BẮT ĐẦU (START)</span><i class="fa-solid fa-arrow-right-to-bracket text-indigo-400"></i></div>
             <div class="flex gap-2">
               <button id="btn-start-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">-0.1s</button>
-              <input type="number" id="input-start-time" step="0.01" min="0" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none transition">
+              <input type="text" id="input-start-time" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none transition" value="00:00:00.000">
               <button id="btn-start-plus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">+0.1s</button>
             </div>
           </div>
           <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2 flex flex-col justify-center items-center text-center">
             <span class="text-xs text-slate-400 font-medium">ĐỘ DÀI VÙNG CHỌN</span>
-            <span id="region-duration" class="font-mono text-2xl font-bold text-emerald-400">00:00.000</span>
+            <span id="region-duration" class="font-mono text-2xl font-bold text-emerald-400">00:00:00.000</span>
           </div>
           <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2">
             <div class="flex justify-between text-xs text-slate-400 font-medium"><span>KẾT THÚC (END)</span><i class="fa-solid fa-arrow-right-from-bracket text-indigo-400"></i></div>
             <div class="flex gap-2">
               <button id="btn-end-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">-0.1s</button>
-              <input type="number" id="input-end-time" step="0.01" min="0" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none transition">
+              <input type="text" id="input-end-time" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none transition" value="00:00:00.000">
               <button id="btn-end-plus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">+0.1s</button>
             </div>
           </div>
@@ -221,9 +221,7 @@
       </main>
     </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 2: GHÉP NHẠC (MERGER)                  -->
-    <!-- ========================================== -->
+    <!-- TAB 2: GHÉP NHẠC (MERGER) -->
     <div id="tab-merge" class="tab-content space-y-6">
       <div class="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
@@ -269,12 +267,29 @@
     let audioContext = null;
     let currentFileName = "audio";
     
+    // Format seconds into HH:MM:SS.ms
     const formatTimeDetailed = (seconds) => {
       if (isNaN(seconds) || seconds < 0) seconds = 0;
-      const m = Math.floor(seconds / 60);
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
       const s = Math.floor(seconds % 60);
       const ms = Math.floor((seconds % 1) * 1000);
-      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+    };
+
+    // Parse HH:MM:SS.ms string back to seconds
+    const parseTimeStr = (str) => {
+      if (!str || typeof str !== 'string') return parseFloat(str) || 0;
+      const parts = str.trim().split(':');
+      let seconds = 0;
+      if (parts.length === 3) {
+        seconds = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseFloat(parts[2]);
+      } else if (parts.length === 2) {
+        seconds = parseInt(parts[0])*60 + parseFloat(parts[1]);
+      } else {
+        seconds = parseFloat(str);
+      }
+      return isNaN(seconds) ? 0 : seconds;
     };
 
     const showToast = (msg, isError = false) => {
@@ -409,26 +424,40 @@
 
     const syncInputs = (region) => {
       if(!region) return;
-      inStart.value = region.start.toFixed(3);
-      inEnd.value = region.end.toFixed(3);
+      inStart.value = formatTimeDetailed(region.start);
+      inEnd.value = formatTimeDetailed(region.end);
       regDur.textContent = formatTimeDetailed(region.end - region.start);
     };
     
     const updateRegion = () => {
       if(!activeRegion || !wavesurfer) return;
-      let s = parseFloat(inStart.value) || 0, e = parseFloat(inEnd.value) || 0;
+      let s = parseTimeStr(inStart.value);
+      let e = parseTimeStr(inEnd.value);
+      const totalDur = wavesurfer.getDuration();
+      
+      if (s < 0) s = 0;
+      if (e > totalDur) e = totalDur;
       if (s >= e) s = Math.max(0, e - 0.05);
+
       activeRegion.setOptions({start: s, end: e});
       syncInputs(activeRegion);
     };
 
     [inStart, inEnd].forEach(el => el.addEventListener('change', updateRegion));
-    document.getElementById('btn-start-minus').onclick = () => { inStart.value = Math.max(0, parseFloat(inStart.value)-0.1).toFixed(3); updateRegion(); };
-    document.getElementById('btn-start-plus').onclick = () => { inStart.value = (parseFloat(inStart.value)+0.1).toFixed(3); updateRegion(); };
-    document.getElementById('btn-end-minus').onclick = () => { inEnd.value = Math.max(0, parseFloat(inEnd.value)-0.1).toFixed(3); updateRegion(); };
-    document.getElementById('btn-end-plus').onclick = () => { inEnd.value = (parseFloat(inEnd.value)+0.1).toFixed(3); updateRegion(); };
+    
+    document.getElementById('btn-start-minus').onclick = () => { 
+      inStart.value = formatTimeDetailed(Math.max(0, parseTimeStr(inStart.value) - 0.1)); updateRegion(); 
+    };
+    document.getElementById('btn-start-plus').onclick = () => { 
+      inStart.value = formatTimeDetailed(parseTimeStr(inStart.value) + 0.1); updateRegion(); 
+    };
+    document.getElementById('btn-end-minus').onclick = () => { 
+      inEnd.value = formatTimeDetailed(Math.max(0, parseTimeStr(inEnd.value) - 0.1)); updateRegion(); 
+    };
+    document.getElementById('btn-end-plus').onclick = () => { 
+      inEnd.value = formatTimeDetailed(parseTimeStr(inEnd.value) + 0.1); updateRegion(); 
+    };
 
-    // --- Cut List Management ---
     const cutListContainer = document.getElementById('cut-list-container');
     const cutListItems = document.getElementById('cut-list-items');
     const cutCountBadge = document.getElementById('cut-count-badge');
@@ -524,7 +553,6 @@
         if (wavesurfer) wavesurfer.destroy();
         wsRegions = WaveSurfer.Regions.create();
         
-        // No container property for Timeline to fix scroll bugs
         wavesurfer = WaveSurfer.create({
           container: '#waveform', 
           waveColor: '#475569', 
@@ -539,6 +567,7 @@
             WaveSurfer.Timeline.create({ 
               height: 20,
               style: { fontSize: '12px', color: '#6b7280' }
+              // FIXED: No container specified here to prevent timeline overflow bugs
             }) 
           ]
         });
@@ -549,9 +578,10 @@
           wsRegions.clearRegions();
           cutItems = []; cutIdCounter = 1; renderCutList();
           
-          // DEFAULT REGION: 10% of total length, perfectly centered (45% to 55%)
-          const start = duration * 0.45;
-          const end = duration * 0.55;
+          // REQUIRED LOGIC: Default 10 seconds exactly at the START (0s)
+          const regionDuration = Math.min(10, duration);
+          const start = 0;
+          const end = regionDuration;
 
           activeRegion = wsRegions.addRegion({ start: start, end: end, color: 'rgba(99, 102, 241, 0.28)', drag: true, resize: true });
           syncInputs(activeRegion);
