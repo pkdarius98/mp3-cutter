@@ -3,682 +3,296 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Audio Trimmer & Waveform Studio</title>
+  <title>Audio Studio Pro - Cắt & Ghép Nhạc Trực Tuyến</title>
+  
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Phosphor Icons for modern minimalist UI icons -->
-  <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <!-- WaveSurfer.js v7 and official plugins -->
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- WaveSurfer.js v7 and plugins -->
   <script src="https://unpkg.com/wavesurfer.js@7"></script>
   <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
   <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
-  <!-- LameJS for client-side MP3 encoding -->
-  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <!-- LameJS for MP3 encoding -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
 
   <style>
-    /* Custom styling for waveform scroll container */
-    #waveform-container {
-      scrollbar-width: thin;
-      scrollbar-color: #6366f1 #1e293b;
-    }
-    #waveform-container::-webkit-scrollbar {
-      height: 8px;
-    }
-    #waveform-container::-webkit-scrollbar-track {
-      background: #1e293b;
-      border-radius: 4px;
-    }
-    #waveform-container::-webkit-scrollbar-thumb {
-      background: #4f46e5;
-      border-radius: 4px;
-    }
-    #waveform-container::-webkit-scrollbar-thumb:hover {
-      background: #6366f1;
-    }
-    /* Custom style for range sliders */
+    /* Custom Scrollbar for Waveform & Lists */
+    ::-webkit-scrollbar { height: 8px; width: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+    
+    /* Range Slider Styling */
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 18px;
-      width: 18px;
+      height: 16px; width: 16px;
       border-radius: 50%;
       background: #6366f1;
       cursor: pointer;
       box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
       transition: transform 0.1s ease;
     }
-    input[type=range]::-webkit-slider-thumb:hover {
-      transform: scale(1.15);
-    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+    
+    /* Drag & Drop Highlight */
+    .drag-over { border-color: #6366f1 !important; background-color: rgba(79, 70, 229, 0.1) !important; }
+    
+    /* Tab Transitions */
+    .tab-content { display: none; animation: fadeIn 0.3s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8 antialiased selection:bg-indigo-600 selection:text-white">
 
   <div class="w-full max-w-5xl mx-auto space-y-6">
-    <!-- Header -->
+    <!-- Header & Navigation -->
     <header class="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-slate-800">
       <div class="flex items-center gap-3">
-        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <i class="ph ph-waveform text-2xl text-white"></i>
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-compact-disc text-2xl text-white"></i>
         </div>
         <div>
-          <h1 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
-            Audio Studio Trimmer
+          <h1 class="text-2xl font-bold bg-gradient-to-r from-white via-slate-200 to-indigo-300 bg-clip-text text-transparent">
+            Audio Studio Pro
           </h1>
-          <p class="text-xs sm:text-sm text-slate-400">Cắt & Tinh chỉnh âm thanh chính xác với Waveform Zoom & Xuất đa định dạng</p>
+          <p class="text-sm text-slate-400">Trình xử lý âm thanh toàn diện trên trình duyệt</p>
         </div>
       </div>
 
-      <!-- File upload button / drag trigger -->
-      <label id="upload-btn-label" class="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition rounded-xl font-medium text-sm shadow-md shadow-indigo-600/25">
-        <i class="ph ph-upload-simple text-lg" id="upload-btn-icon"></i>
-        <span id="upload-btn-text">Chọn File Âm Thanh</span>
-        <input type="file" id="audio-input" accept="audio/*" class="hidden">
-      </label>
+      <!-- Tabs Navigation -->
+      <nav class="flex p-1 bg-slate-900 rounded-xl border border-slate-800">
+        <button onclick="switchTab('trim')" id="nav-trim" class="nav-btn flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all bg-indigo-600 text-white shadow-md">
+          <i class="fa-solid fa-scissors"></i> Cắt Nhạc
+        </button>
+        <button onclick="switchTab('merge')" id="nav-merge" class="nav-btn flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+          <i class="fa-solid fa-link"></i> Ghép Nhạc
+        </button>
+      </nav>
     </header>
 
-    <!-- Empty state notice & Drop zone -->
-    <div id="drop-zone" class="relative border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-900/40 rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition overflow-hidden min-h-[220px]">
-      <div class="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mb-3 text-indigo-400">
-        <i class="ph ph-music-notes text-3xl"></i>
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm hidden flex flex-col items-center justify-center gap-4 z-50 transition-opacity">
+      <div class="relative w-16 h-16">
+        <div class="w-16 h-16 rounded-full border-4 border-slate-800 border-t-indigo-500 animate-spin"></div>
+        <i class="fa-solid fa-music absolute inset-0 flex items-center justify-center text-indigo-400 text-xl animate-pulse"></i>
       </div>
-      <p class="text-base font-semibold text-slate-200">Kéo thả file âm thanh (MP3, WAV, AAC, OGG...) vào đây</p>
-      <p class="text-xs text-slate-500 mt-1">hoặc nhấn vào nút tải lên phía trên</p>
-
-      <!-- Processing / Loading Overlay (Shown during file decode) -->
-      <div id="loading-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm hidden flex flex-col items-center justify-center gap-4 z-20 transition-opacity">
-        <div class="relative w-14 h-14">
-          <div class="w-14 h-14 rounded-full border-4 border-slate-800 border-t-indigo-500 animate-spin"></div>
-          <i class="ph ph-waveform absolute inset-0 flex items-center justify-center text-indigo-400 text-xl animate-pulse"></i>
-        </div>
-        <div class="text-center space-y-1">
-          <p id="loading-status-text" class="text-sm font-semibold text-indigo-300">Đang đọc tệp tin...</p>
-          <p class="text-xs text-slate-400">Vui lòng chờ trong giây lát</p>
-        </div>
-        <!-- Simple step indicator bar -->
-        <div class="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-          <div id="loading-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-violet-500 w-1/3 transition-all duration-300"></div>
-        </div>
+      <div class="text-center space-y-1">
+        <p id="loading-status-text" class="text-base font-semibold text-indigo-300">Đang xử lý...</p>
+        <p class="text-sm text-slate-400" id="loading-sub-text">Vui lòng không đóng trình duyệt</p>
       </div>
     </div>
 
-    <!-- Main Editor Interface (hidden until audio loaded) -->
-    <main id="editor-panel" class="hidden space-y-6">
-      <!-- Track Metadata Bar -->
-      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900/70 border border-slate-800 px-4 py-3 rounded-xl">
-        <div class="flex items-center gap-3">
-          <i class="ph ph-music-note text-indigo-400 text-xl"></i>
-          <div>
-            <span id="track-name" class="font-medium text-sm text-slate-200 block truncate max-w-[200px] sm:max-w-md">song.mp3</span>
-            <span id="track-meta" class="text-xs text-slate-400 font-mono">Thời lượng: 00:00.000</span>
-          </div>
+    <!-- Toast Notification -->
+    <div id="toast-message" class="hidden transition-all duration-300 transform fixed bottom-6 right-6 max-w-sm bg-slate-900 border border-emerald-500/50 shadow-2xl p-4 rounded-xl flex items-center gap-3 z-50">
+      <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0" id="toast-icon-box">
+        <i class="fa-solid fa-check text-lg" id="toast-icon"></i>
+      </div>
+      <p id="toast-text" class="text-sm text-slate-200"></p>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: CẮT NHẠC (TRIMMER)                  -->
+    <!-- ========================================== -->
+    <div id="tab-trim" class="tab-content active space-y-6">
+      <!-- Empty state notice & Drop zone -->
+      <div id="trim-drop-zone" class="relative border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-900/40 rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition overflow-hidden min-h-[220px]">
+        <div class="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mb-3 text-indigo-400">
+          <i class="fa-solid fa-cloud-arrow-up text-3xl"></i>
         </div>
-        <div class="flex items-center gap-2 text-xs text-slate-400 font-mono bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
-          <i class="ph ph-clock text-indigo-400"></i>
-          <span>Vị trí hiện tại:</span>
-          <span id="current-play-time" class="text-indigo-300 font-semibold">00:00.000</span>
-        </div>
+        <p class="text-base font-semibold text-slate-200">Kéo thả file âm thanh vào đây để cắt</p>
+        <label class="cursor-pointer mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium text-sm shadow-md transition z-10" onclick="event.stopPropagation()">
+          <i class="fa-solid fa-folder-open"></i> Chọn File
+          <input type="file" id="trim-audio-input" accept="audio/*" class="hidden">
+        </label>
       </div>
 
-      <!-- Waveform and Timeline Viewport with Zoom -->
-      <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xl space-y-3">
-        <!-- Interactive Controls Bar: Zoom, Reset Zoom, Scroll hint -->
-        <div class="flex flex-wrap items-center justify-between gap-3 text-sm pb-2 border-b border-slate-800/80">
-          <!-- Zoom Controls -->
-          <div class="flex items-center gap-3 flex-1 min-w-[240px]">
-            <span class="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-              <i class="ph ph-magnifying-glass-plus text-base text-indigo-400"></i>
-              Thu / Phóng:
-            </span>
-            <button id="btn-zoom-out" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center justify-center text-slate-300 transition" title="Thu nhỏ">
-              <i class="ph ph-minus"></i>
-            </button>
-            <input type="range" id="zoom-slider" min="10" max="600" value="50" step="5" class="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
-            <button id="btn-zoom-in" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded-lg flex items-center justify-center text-slate-300 transition" title="Phóng to">
-              <i class="ph ph-plus"></i>
-            </button>
-            <span id="zoom-val-text" class="text-xs font-mono text-indigo-400 w-12 text-right">50 px/s</span>
+      <!-- Main Editor Interface (hidden until audio loaded) -->
+      <main id="trim-editor-panel" class="hidden space-y-6">
+        <!-- Track Metadata Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900/70 border border-slate-800 px-4 py-3 rounded-xl">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-file-audio text-indigo-400 text-xl"></i>
+            <div>
+              <span id="trim-track-name" class="font-medium text-sm text-slate-200 block truncate max-w-[200px] sm:max-w-md">song.mp3</span>
+              <span id="trim-track-meta" class="text-xs text-slate-400 font-mono">Thời lượng: 00:00.000</span>
+            </div>
           </div>
-
-          <!-- Shortcuts Hint -->
-          <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-            <span class="bg-slate-800 px-2 py-0.5 rounded text-[11px] border border-slate-700">Ctrl + Lăn chuột</span>
-            <span>để zoom sóng âm</span>
+          <div class="flex items-center gap-2 text-xs text-slate-400 font-mono bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800">
+            <i class="fa-regular fa-clock text-indigo-400"></i> Hiện tại:
+            <span id="trim-current-time" class="text-indigo-300 font-semibold">00:00.000</span>
           </div>
         </div>
 
-        <!-- Waveform scroll viewport -->
-        <div id="waveform-container" class="relative overflow-x-auto w-full bg-slate-950/90 rounded-xl p-2 min-h-[160px] border border-slate-800/70 select-none">
-          <div id="waveform" class="relative"></div>
-          <div id="wave-timeline" class="mt-1 border-t border-slate-800/80"></div>
-        </div>
-      </div>
-
-      <!-- Region Fine-Tuning & Playback Panel -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <!-- Start Point Precision -->
-        <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2">
-          <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>ĐIỂM BẮT ĐẦU (START)</span>
-            <i class="ph ph-arrow-line-left text-indigo-400"></i>
+        <!-- Waveform and Timeline Viewport with Zoom -->
+        <div class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xl space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-3 text-sm pb-2 border-b border-slate-800/80">
+            <div class="flex items-center gap-3 flex-1 min-w-[240px]">
+              <span class="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-magnifying-glass text-indigo-400"></i> Zoom:
+              </span>
+              <button id="btn-zoom-out" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition"><i class="fa-solid fa-minus"></i></button>
+              <input type="range" id="zoom-slider" min="10" max="600" value="50" step="5" class="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+              <button id="btn-zoom-in" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="hidden sm:block text-xs text-slate-400"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Ctrl + Lăn chuột</span> để zoom</div>
           </div>
-          <div class="flex items-center gap-2">
-            <button id="btn-start-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs rounded-lg transition font-mono">-0.1s</button>
-            <input type="number" id="input-start-time" step="0.01" min="0" value="0.00" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 px-2.5 text-center font-mono text-sm text-indigo-300 outline-none">
-            <button id="btn-start-plus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs rounded-lg transition font-mono">+0.1s</button>
+          <div id="waveform-container" class="relative overflow-x-auto w-full bg-slate-950/90 rounded-xl p-2 min-h-[160px] border border-slate-800/70 select-none">
+            <div id="waveform" class="relative"></div>
+            <div id="wave-timeline" class="mt-1 border-t border-slate-800/80"></div>
           </div>
         </div>
 
-        <!-- Region Duration Stats -->
-        <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2 flex flex-col justify-center items-center text-center">
-          <span class="text-xs text-slate-400 font-medium tracking-wide">ĐỘ DÀI ĐOẠN CẮT</span>
-          <span id="region-duration" class="font-mono text-2xl font-bold text-emerald-400">00:05.000</span>
-          <span class="text-[11px] text-slate-500">Chính xác đến mili-giây (ms)</span>
-        </div>
-
-        <!-- End Point Precision -->
-        <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2">
-          <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
-            <span>ĐIỂM KẾT THÚC (END)</span>
-            <i class="ph ph-arrow-line-right text-indigo-400"></i>
+        <!-- Region Fine-Tuning -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2">
+            <div class="flex justify-between text-xs text-slate-400 font-medium"><span>BẮT ĐẦU (START)</span><i class="fa-solid fa-arrow-right-to-bracket text-indigo-400"></i></div>
+            <div class="flex gap-2">
+              <button id="btn-start-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">-0.1s</button>
+              <input type="number" id="input-start-time" step="0.01" min="0" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none">
+              <button id="btn-start-plus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">+0.1s</button>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button id="btn-end-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs rounded-lg transition font-mono">-0.1s</button>
-            <input type="number" id="input-end-time" step="0.01" min="0" value="5.00" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 px-2.5 text-center font-mono text-sm text-indigo-300 outline-none">
-            <button id="btn-end-plus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs rounded-lg transition font-mono">+0.1s</button>
+          <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2 flex flex-col justify-center items-center text-center">
+            <span class="text-xs text-slate-400 font-medium">ĐỘ DÀI VÙNG CHỌN</span>
+            <span id="region-duration" class="font-mono text-2xl font-bold text-emerald-400">00:00.000</span>
+          </div>
+          <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2">
+            <div class="flex justify-between text-xs text-slate-400 font-medium"><span>KẾT THÚC (END)</span><i class="fa-solid fa-arrow-right-from-bracket text-indigo-400"></i></div>
+            <div class="flex gap-2">
+              <button id="btn-end-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">-0.1s</button>
+              <input type="number" id="input-end-time" step="0.01" min="0" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none">
+              <button id="btn-end-plus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">+0.1s</button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Action & Playback Toolbar with Export Format Options -->
-      <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-lg">
-        <!-- Audio Transport Controls -->
-        <div class="flex flex-wrap items-center gap-2">
-          <!-- Play / Pause Total -->
-          <button id="btn-play-pause" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 transition rounded-xl font-medium text-sm">
-            <i class="ph ph-play text-base text-indigo-400" id="play-icon"></i>
-            <span id="play-text">Phát tất cả</span>
-          </button>
-
-          <!-- Play Selected Region Only -->
-          <button id="btn-play-region" class="flex items-center gap-2 px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 active:scale-95 transition rounded-xl font-medium text-sm">
-            <i class="ph ph-repeat text-base"></i>
-            <span>Nghe vùng chọn</span>
-          </button>
-
-          <!-- Stop -->
-          <button id="btn-stop" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl flex items-center justify-center transition" title="Dừng lại">
-            <i class="ph ph-stop text-base"></i>
-          </button>
-        </div>
-
-        <!-- Export Format Options & Download -->
-        <div class="flex flex-wrap items-center gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-800">
-          <!-- Format Selector -->
-          <div class="flex items-center gap-2">
-            <label for="export-format" class="text-xs text-slate-400 font-medium">Định dạng:</label>
-            <select id="export-format" class="bg-slate-950 border border-slate-700 text-indigo-300 text-xs font-semibold rounded-xl px-3 py-2 outline-none focus:border-indigo-500 cursor-pointer">
-              <option value="wav">WAV (Gốc không nén - PCM 16-bit)</option>
-              <option value="mp3-320" selected>MP3 (320 kbps - Chất lượng cao)</option>
-              <option value="mp3-192">MP3 (192 kbps - Chuẩn tốt)</option>
-              <option value="mp3-128">MP3 (128 kbps - Dung lượng nhẹ)</option>
+        <!-- Export Toolbar -->
+        <div class="flex flex-col lg:flex-row justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+          <div class="flex flex-wrap gap-2">
+            <button id="btn-play-pause" class="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-medium"><i class="fa-solid fa-play text-indigo-400" id="play-icon"></i> <span id="play-text">Phát tất cả</span></button>
+            <button id="btn-play-region" class="flex items-center gap-2 px-4 py-2 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded-xl text-sm"><i class="fa-solid fa-repeat"></i> Nghe vùng chọn</button>
+            <button id="btn-stop" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 rounded-xl flex items-center justify-center"><i class="fa-solid fa-stop"></i></button>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="trim-export-format" class="bg-slate-950 border border-slate-700 text-indigo-300 text-sm rounded-xl px-3 py-2 outline-none">
+              <option value="wav">WAV (Gốc PCM)</option>
+              <option value="mp3-320" selected>MP3 (320 kbps)</option>
+              <option value="mp3-192">MP3 (192 kbps)</option>
+              <option value="mp3-128">MP3 (128 kbps)</option>
             </select>
+            <button id="btn-export-cut" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-semibold text-sm text-white shadow-lg"><i class="fa-solid fa-download"></i> Cắt & Tải về</button>
           </div>
-
-          <!-- Download Button -->
-          <button id="btn-export-cut" class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition rounded-xl font-semibold text-sm text-white shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
-            <i class="ph ph-download-simple text-lg" id="btn-export-icon"></i>
-            <span id="btn-export-label">Cắt & Tải về</span>
-          </button>
         </div>
+      </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: GHÉP NHẠC (MERGER)                  -->
+    <!-- ========================================== -->
+    <div id="tab-merge" class="tab-content space-y-6">
+      
+      <!-- Upload & List Container -->
+      <div class="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+        
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+          <div>
+            <h2 class="text-lg font-bold text-slate-200">Danh sách tệp tin cần ghép</h2>
+            <p class="text-sm text-slate-400">Các tệp sẽ được ghép nối tiếp nhau từ trên xuống dưới.</p>
+          </div>
+          <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium text-sm shadow-md transition">
+            <i class="fa-solid fa-plus"></i> Thêm tệp
+            <input type="file" id="merge-audio-input" accept="audio/*" multiple class="hidden">
+          </label>
+        </div>
+
+        <!-- Merge Drag & Drop Zone (Visible if list is empty) -->
+        <div id="merge-drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-950/50 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition">
+          <i class="fa-solid fa-photo-film text-3xl text-indigo-400 mb-2"></i>
+          <p class="text-sm font-semibold text-slate-300">Kéo thả nhiều file âm thanh vào đây</p>
+        </div>
+
+        <!-- Sortable File List -->
+        <ul id="merge-file-list" class="space-y-2 hidden">
+          <!-- List items injected via JS -->
+        </ul>
       </div>
 
-      <!-- Notice & Toast Notification -->
-      <div id="toast-message" class="hidden transition-all duration-300 transform fixed bottom-6 right-6 max-w-sm bg-slate-900 border border-emerald-500/50 shadow-2xl p-4 rounded-xl flex items-center gap-3 z-50">
-        <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0" id="toast-icon-box">
-          <i class="ph ph-check text-lg" id="toast-icon"></i>
+      <!-- Merge Export Toolbar -->
+      <div class="flex flex-col sm:flex-row justify-end items-center gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-between">
+          <span class="text-sm text-slate-400 font-medium">Xuất thành:</span>
+          <select id="merge-export-format" class="bg-slate-950 border border-slate-700 text-indigo-300 text-sm rounded-xl px-3 py-2 outline-none">
+            <option value="wav">WAV (Gốc PCM)</option>
+            <option value="mp3-320" selected>MP3 (320 kbps)</option>
+            <option value="mp3-192">MP3 (192 kbps)</option>
+            <option value="mp3-128">MP3 (128 kbps)</option>
+          </select>
         </div>
-        <p id="toast-text" class="text-xs text-slate-200"></p>
+        <button id="btn-export-merge" class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl font-semibold text-sm text-white shadow-lg disabled:opacity-50">
+          <i class="fa-solid fa-layer-group"></i> Tiến hành Ghép & Tải về
+        </button>
       </div>
-    </main>
+
+    </div>
   </div>
 
   <script>
-    // Global references and Web Audio Context
-    let wavesurfer = null;
-    let wsRegions = null;
-    let wsTimeline = null;
-    let activeRegion = null;
+    // --- GLOBAL VARIABLES & UTILS ---
     let audioContext = null;
-    let originalAudioBuffer = null;
-    let currentFileName = "trimmed_audio";
-
-    // DOM Elements
-    const audioInput = document.getElementById('audio-input');
-    const uploadBtnLabel = document.getElementById('upload-btn-label');
-    const uploadBtnIcon = document.getElementById('upload-btn-icon');
-    const uploadBtnText = document.getElementById('upload-btn-text');
-    const dropZone = document.getElementById('drop-zone');
-    const loadingOverlay = document.getElementById('loading-overlay');
-    const loadingStatusText = document.getElementById('loading-status-text');
-    const loadingProgressBar = document.getElementById('loading-progress-bar');
-    const editorPanel = document.getElementById('editor-panel');
-    const trackName = document.getElementById('track-name');
-    const trackMeta = document.getElementById('track-meta');
-    const currentPlayTime = document.getElementById('current-play-time');
+    let currentFileName = "audio";
     
-    // Zoom Controls
-    const zoomSlider = document.getElementById('zoom-slider');
-    const zoomValText = document.getElementById('zoom-val-text');
-    const btnZoomIn = document.getElementById('btn-zoom-in');
-    const btnZoomOut = document.getElementById('btn-zoom-out');
-    const waveformContainer = document.getElementById('waveform-container');
-
-    // Precision Input Controls
-    const inputStartTime = document.getElementById('input-start-time');
-    const inputEndTime = document.getElementById('input-end-time');
-    const regionDuration = document.getElementById('region-duration');
-    const btnStartMinus = document.getElementById('btn-start-minus');
-    const btnStartPlus = document.getElementById('btn-start-plus');
-    const btnEndMinus = document.getElementById('btn-end-minus');
-    const btnEndPlus = document.getElementById('btn-end-plus');
-
-    // Action & Export Buttons
-    const btnPlayPause = document.getElementById('btn-play-pause');
-    const playIcon = document.getElementById('play-icon');
-    const playText = document.getElementById('play-text');
-    const btnPlayRegion = document.getElementById('btn-play-region');
-    const btnStop = document.getElementById('btn-stop');
-    const btnExportCut = document.getElementById('btn-export-cut');
-    const btnExportIcon = document.getElementById('btn-export-icon');
-    const btnExportLabel = document.getElementById('btn-export-label');
-    const exportFormat = document.getElementById('export-format');
-    const toastMessage = document.getElementById('toast-message');
-    const toastText = document.getElementById('toast-text');
-
-    function formatTimeDetailed(seconds) {
+    // UI Helpers
+    const formatTimeDetailed = (seconds) => {
       if (isNaN(seconds) || seconds < 0) seconds = 0;
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
       const ms = Math.floor((seconds % 1) * 1000);
-      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
-    }
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+    };
 
-    function showToast(msg, isError = false) {
-      toastText.textContent = msg;
+    const showToast = (msg, isError = false) => {
+      const toast = document.getElementById('toast-message');
+      const text = document.getElementById('toast-text');
       const iconBox = document.getElementById('toast-icon-box');
       const icon = document.getElementById('toast-icon');
-
-      if (isError) {
-        iconBox.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center flex-shrink-0';
-        icon.className = 'ph ph-warning-circle text-lg';
-      } else {
-        iconBox.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0';
-        icon.className = 'ph ph-check text-lg';
-      }
-
-      toastMessage.classList.remove('hidden');
-      setTimeout(() => {
-        toastMessage.classList.add('hidden');
-      }, 3500);
-    }
-
-    function setFileLoadingState(loading, stepText = '', progressPct = 0) {
-      if (loading) {
-        // Disable and style upload triggers
-        audioInput.disabled = true;
-        uploadBtnLabel.classList.add('opacity-50', 'pointer-events-none');
-        uploadBtnIcon.className = "ph ph-spinner animate-spin text-lg";
-        uploadBtnText.textContent = "Đang xử lý...";
-        
-        // Show dropzone overlay
-        loadingOverlay.classList.remove('hidden');
-        loadingStatusText.textContent = stepText;
-        loadingProgressBar.style.width = `${progressPct}%`;
-      } else {
-        audioInput.disabled = false;
-        uploadBtnLabel.classList.remove('opacity-50', 'pointer-events-none');
-        uploadBtnIcon.className = "ph ph-upload-simple text-lg";
-        uploadBtnText.textContent = "Chọn File Âm Thanh";
-        loadingOverlay.classList.add('hidden');
-      }
-    }
-
-    function initWaveSurfer() {
-      if (wavesurfer) {
-        wavesurfer.destroy();
-      }
-
-      // Initialize Regions plugin
-      wsRegions = WaveSurfer.Regions.create();
-
-      // Initialize Timeline plugin
-      wsTimeline = WaveSurfer.Timeline.create({
-        container: '#wave-timeline',
-        height: 20,
-        timeInterval: 0.5,
-        primaryLabelInterval: 5,
-        style: {
-          fontSize: '10px',
-          color: '#64748b'
-        }
-      });
-
-      // Create WaveSurfer instance
-      wavesurfer = WaveSurfer.create({
-        container: '#waveform',
-        waveColor: '#475569',
-        progressColor: '#6366f1',
-        cursorColor: '#f43f5e',
-        cursorWidth: 2,
-        height: 120,
-        barWidth: 2,
-        barGap: 1.5,
-        barRadius: 2,
-        normalize: true,
-        minPxPerSec: parseInt(zoomSlider.value),
-        plugins: [wsRegions, wsTimeline]
-      });
-
-      // Events from WaveSurfer
-      wavesurfer.on('ready', () => {
-        const totalDuration = wavesurfer.getDuration();
-        trackMeta.textContent = `Thời lượng: ${formatTimeDetailed(totalDuration)} | Tỷ lệ mẫu: ${originalAudioBuffer?.sampleRate || 44100} Hz`;
-
-        // Clear regions and make a default region (first 5 seconds or full duration)
-        wsRegions.clearRegions();
-        const initialEnd = Math.min(5, totalDuration);
-
-        activeRegion = wsRegions.addRegion({
-          start: 0,
-          end: initialEnd,
-          color: 'rgba(99, 102, 241, 0.28)',
-          drag: true,
-          resize: true,
-        });
-
-        syncInputsFromRegion(activeRegion);
-        
-        // Hide loading state and display editor panel
-        setFileLoadingState(false);
-        dropZone.classList.add('hidden');
-        editorPanel.classList.remove('hidden');
-        showToast("Đã tải xong tệp âm thanh thành công!");
-      });
-
-      wavesurfer.on('timeupdate', (currentTime) => {
-        currentPlayTime.textContent = formatTimeDetailed(currentTime);
-      });
-
-      wavesurfer.on('play', () => {
-        playIcon.className = 'ph ph-pause text-base text-amber-400';
-        playText.textContent = 'Tạm dừng';
-      });
-
-      wavesurfer.on('pause', () => {
-        playIcon.className = 'ph ph-play text-base text-indigo-400';
-        playText.textContent = 'Phát tất cả';
-      });
-
-      // Region update listener
-      wsRegions.on('region-updated', (region) => {
-        activeRegion = region;
-        syncInputsFromRegion(region);
-      });
-
-      wsRegions.on('region-clicked', (region, e) => {
-        e.stopPropagation();
-        activeRegion = region;
-        region.play();
-      });
-    }
-
-    function syncInputsFromRegion(region) {
-      if (!region) return;
-      inputStartTime.value = region.start.toFixed(3);
-      inputEndTime.value = region.end.toFixed(3);
-      const diff = Math.max(0, region.end - region.start);
-      regionDuration.textContent = formatTimeDetailed(diff);
-    }
-
-    function updateRegionFromInputs() {
-      if (!activeRegion || !wavesurfer) return;
-      const totalDur = wavesurfer.getDuration();
-      let start = parseFloat(inputStartTime.value);
-      let end = parseFloat(inputEndTime.value);
-
-      if (isNaN(start) || start < 0) start = 0;
-      if (isNaN(end) || end > totalDur) end = totalDur;
-      if (start >= end) start = Math.max(0, end - 0.05);
-
-      activeRegion.setOptions({
-        start: start,
-        end: end
-      });
-      syncInputsFromRegion(activeRegion);
-    }
-
-    // Step adjustment handlers (+/- 0.1s)
-    btnStartMinus.addEventListener('click', () => {
-      inputStartTime.value = Math.max(0, parseFloat(inputStartTime.value) - 0.1).toFixed(3);
-      updateRegionFromInputs();
-    });
-    btnStartPlus.addEventListener('click', () => {
-      inputStartTime.value = (parseFloat(inputStartTime.value) + 0.1).toFixed(3);
-      updateRegionFromInputs();
-    });
-    btnEndMinus.addEventListener('click', () => {
-      inputEndTime.value = Math.max(0, parseFloat(inputEndTime.value) - 0.1).toFixed(3);
-      updateRegionFromInputs();
-    });
-    btnEndPlus.addEventListener('click', () => {
-      inputEndTime.value = (parseFloat(inputEndTime.value) + 0.1).toFixed(3);
-      updateRegionFromInputs();
-    });
-
-    inputStartTime.addEventListener('change', updateRegionFromInputs);
-    inputEndTime.addEventListener('change', updateRegionFromInputs);
-
-    function applyZoom(pxPerSec) {
-      const clamped = Math.max(10, Math.min(600, pxPerSec));
-      zoomSlider.value = clamped;
-      zoomValText.textContent = `${clamped} px/s`;
-      if (wavesurfer) {
-        wavesurfer.zoom(clamped);
-      }
-    }
-
-    zoomSlider.addEventListener('input', (e) => {
-      applyZoom(parseInt(e.target.value));
-    });
-
-    btnZoomIn.addEventListener('click', () => {
-      applyZoom(parseInt(zoomSlider.value) + 30);
-    });
-
-    btnZoomOut.addEventListener('click', () => {
-      applyZoom(parseInt(zoomSlider.value) - 30);
-    });
-
-    // Zoom via Mouse Wheel when holding Ctrl over the waveform
-    waveformContainer.addEventListener('wheel', (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        const delta = e.deltaY < 0 ? 25 : -25;
-        applyZoom(parseInt(zoomSlider.value) + delta);
-      }
-    }, { passive: false });
-
-    async function loadAudioFile(file) {
-      if (!file) return;
-
-      currentFileName = file.name.replace(/\.[^/.]+$/, "");
-      trackName.textContent = file.name;
-
-      // Step 1: Start loading and display spinner
-      setFileLoadingState(true, "Đang đọc tệp tin...", 25);
-      // Allow browser to render UI before heavy work
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
-
-      try {
-        // Read file ArrayBuffer
-        const arrayBuffer = await file.arrayBuffer();
-
-        // Step 2: Decode AudioBuffer
-        setFileLoadingState(true, "Đang giải mã âm thanh (Web Audio API)...", 60);
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const bufferCopy = arrayBuffer.slice(0);
-        originalAudioBuffer = await audioContext.decodeAudioData(bufferCopy);
-
-        // Step 3: Initialize WaveSurfer & Timeline
-        setFileLoadingState(true, "Đang tạo biểu đồ sóng âm (WaveSurfer)...", 90);
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        initWaveSurfer();
-        const fileBlobUrl = URL.createObjectURL(file);
-        wavesurfer.load(fileBlobUrl);
-
-      } catch (err) {
-        console.error("Lỗi giải mã audio:", err);
-        setFileLoadingState(false);
-        showToast("Không thể giải mã file âm thanh này. Vui lòng thử file khác!", true);
-      }
-    }
-
-    audioInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        loadAudioFile(e.target.files[0]);
-      }
-    });
-
-    // Drag and drop handlers
-    dropZone.addEventListener('click', () => {
-      if (!audioInput.disabled) {
-        audioInput.click();
-      }
-    });
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      if (!audioInput.disabled) {
-        dropZone.classList.add('border-indigo-500', 'bg-indigo-950/20');
-      }
-    });
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
-    });
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
-      if (!audioInput.disabled && e.dataTransfer.files.length > 0) {
-        loadAudioFile(e.dataTransfer.files[0]);
-      }
-    });
-
-    btnPlayPause.addEventListener('click', () => {
-      if (wavesurfer) wavesurfer.playPause();
-    });
-
-    btnPlayRegion.addEventListener('click', () => {
-      if (activeRegion) {
-        activeRegion.play();
-      }
-    });
-
-    btnStop.addEventListener('click', () => {
-      if (wavesurfer) {
-        wavesurfer.stop();
-        wavesurfer.setTime(0);
-      }
-    });
-
-    btnExportCut.addEventListener('click', async () => {
-      if (!originalAudioBuffer || !activeRegion) {
-        showToast("Chưa chọn vùng để cắt!", true);
-        return;
-      }
-
-      const sampleRate = originalAudioBuffer.sampleRate;
-      const startSec = activeRegion.start;
-      const endSec = activeRegion.end;
-      const startOffset = Math.floor(startSec * sampleRate);
-      const endOffset = Math.floor(endSec * sampleRate);
-      const frameCount = Math.max(0, endOffset - startOffset);
-
-      if (frameCount === 0) {
-        showToast("Vùng chọn quá ngắn!", true);
-        return;
-      }
-
-      // Create new buffer for sliced region
-      const slicedBuffer = audioContext.createBuffer(
-        originalAudioBuffer.numberOfChannels,
-        frameCount,
-        sampleRate
-      );
-
-      for (let ch = 0; ch < originalAudioBuffer.numberOfChannels; ch++) {
-        const srcData = originalAudioBuffer.getChannelData(ch);
-        const destData = slicedBuffer.getChannelData(ch);
-        for (let i = 0; i < frameCount; i++) {
-          destData[i] = srcData[startOffset + i];
-        }
-      }
-
-      const chosenFormat = exportFormat.value;
       
-      // UI loading state
-      btnExportCut.disabled = true;
-      btnExportIcon.className = "ph ph-spinner animate-spin text-lg";
-      btnExportLabel.textContent = "Đang xử lý...";
+      text.textContent = msg;
+      iconBox.className = isError 
+        ? 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center flex-shrink-0'
+        : 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0';
+      icon.className = isError ? 'fa-solid fa-triangle-exclamation text-lg' : 'fa-solid fa-check text-lg';
+      
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 4000);
+    };
 
-      try {
-        let exportBlob = null;
-        let fileExt = 'wav';
+    const toggleLoading = (show, mainText = "Đang xử lý...", subText = "Vui lòng chờ trong giây lát") => {
+      const overlay = document.getElementById('loading-overlay');
+      document.getElementById('loading-status-text').textContent = mainText;
+      document.getElementById('loading-sub-text').textContent = subText;
+      if (show) overlay.classList.remove('hidden');
+      else overlay.classList.add('hidden');
+    };
 
-        // Give UI a chance to render spinner
-        await new Promise(r => setTimeout(r, 40));
+    // Tab Switching Logic
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.className = "nav-btn flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800";
+      });
+      const activeBtn = document.getElementById('nav-' + tabId);
+      activeBtn.className = "nav-btn flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all bg-indigo-600 text-white shadow-md";
+    }
 
-        if (chosenFormat === 'wav') {
-          exportBlob = encodeAudioBufferToWav(slicedBuffer);
-          fileExt = 'wav';
-        } else if (chosenFormat.startsWith('mp3')) {
-          const bitrate = parseInt(chosenFormat.split('-')[1]) || 192;
-          exportBlob = encodeAudioBufferToMp3(slicedBuffer, bitrate);
-          fileExt = 'mp3';
-        }
-
-        if (!exportBlob) {
-          throw new Error("Không thể tạo file đầu ra.");
-        }
-
-        // Trigger file download
-        const downloadUrl = URL.createObjectURL(exportBlob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = downloadUrl;
-        a.download = `${currentFileName}_cut_${startSec.toFixed(2)}s-${endSec.toFixed(2)}s.${fileExt}`;
-        document.body.appendChild(a);
-        a.click();
-
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(downloadUrl);
-        }, 1500);
-
-        showToast(`Đã xuất file .${fileExt.toUpperCase()} thành công!`);
-      } catch (err) {
-        console.error("Lỗi khi trích xuất file:", err);
-        showToast("Có lỗi xảy ra trong quá trình xuất file!", true);
-      } finally {
-        btnExportCut.disabled = false;
-        btnExportIcon.className = "ph ph-download-simple text-lg";
-        btnExportLabel.textContent = "Cắt & Tải về";
-      }
-    });
+    // Init Audio Context lazily to comply with browser autoplay policies
+    const getAudioContext = () => {
+      if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      return audioContext;
+    };
 
     function encodeAudioBufferToWav(buffer) {
       const numChannels = buffer.numberOfChannels;
@@ -688,99 +302,348 @@
       const blockAlign = numChannels * bytesPerSample;
       const dataSize = buffer.length * blockAlign;
       const bufferLength = 44 + dataSize;
-
       const arrayBuffer = new ArrayBuffer(bufferLength);
       const view = new DataView(arrayBuffer);
 
       let pos = 0;
-      function writeString(str) {
-        for (let i = 0; i < str.length; i++) {
-          view.setUint8(pos++, str.charCodeAt(i));
-        }
-      }
-
-      // RIFF chunk descriptor
-      writeString('RIFF');
-      view.setUint32(pos, 36 + dataSize, true); pos += 4;
-      writeString('WAVE');
-
-      // fmt sub-chunk
-      writeString('fmt ');
-      view.setUint32(pos, 16, true); pos += 4;
+      const writeString = str => { for (let i = 0; i < str.length; i++) view.setUint8(pos++, str.charCodeAt(i)); };
+      
+      writeString('RIFF'); view.setUint32(pos, 36 + dataSize, true); pos += 4; writeString('WAVE');
+      writeString('fmt '); view.setUint32(pos, 16, true); pos += 4;
       view.setUint16(pos, 1, true); pos += 2;
       view.setUint16(pos, numChannels, true); pos += 2;
       view.setUint32(pos, sampleRate, true); pos += 4;
       view.setUint32(pos, sampleRate * blockAlign, true); pos += 4;
       view.setUint16(pos, blockAlign, true); pos += 2;
       view.setUint16(pos, bitDepth, true); pos += 2;
-
-      // data sub-chunk
-      writeString('data');
-      view.setUint32(pos, dataSize, true); pos += 4;
+      writeString('data'); view.setUint32(pos, dataSize, true); pos += 4;
 
       const channels = [];
-      for (let c = 0; c < numChannels; c++) {
-        channels.push(buffer.getChannelData(c));
-      }
+      for (let c = 0; c < numChannels; c++) channels.push(buffer.getChannelData(c));
 
       for (let i = 0; i < buffer.length; i++) {
         for (let c = 0; c < numChannels; c++) {
           let sample = Math.max(-1, Math.min(1, channels[c][i]));
           sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-          view.setInt16(pos, sample, true);
-          pos += 2;
+          view.setInt16(pos, sample, true); pos += 2;
         }
       }
-
       return new Blob([view], { type: 'audio/wav' });
     }
 
     function encodeAudioBufferToMp3(buffer, bitrate = 192) {
-      if (typeof lamejs === 'undefined') {
-        throw new Error("Thư viện lamejs chưa được nạp.");
-      }
-
+      if (typeof lamejs === 'undefined') throw new Error("Thư viện lamejs chưa được nạp.");
       const channels = buffer.numberOfChannels;
       const sampleRate = buffer.sampleRate;
       const mp3encoder = new lamejs.Mp3Encoder(channels, sampleRate, bitrate);
       const mp3Data = [];
 
-      // Convert float32 channel buffers to 16-bit signed PCM
-      function floatTo16BitPCM(input) {
+      const floatTo16BitPCM = (input) => {
         const output = new Int16Array(input.length);
         for (let i = 0; i < input.length; i++) {
           const s = Math.max(-1, Math.min(1, input[i]));
           output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
         return output;
-      }
+      };
 
       const left = floatTo16BitPCM(buffer.getChannelData(0));
       const right = channels > 1 ? floatTo16BitPCM(buffer.getChannelData(1)) : null;
+      const sampleBlockSize = 1152; 
 
-      const sampleBlockSize = 1152; // LAME standard block size
       for (let i = 0; i < left.length; i += sampleBlockSize) {
         const leftChunk = left.subarray(i, i + sampleBlockSize);
         let mp3buf;
-        if (channels === 1) {
-          mp3buf = mp3encoder.encodeBuffer(leftChunk);
-        } else {
+        if (channels === 1) mp3buf = mp3encoder.encodeBuffer(leftChunk);
+        else {
           const rightChunk = right.subarray(i, i + sampleBlockSize);
           mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
         }
-        if (mp3buf.length > 0) {
-          mp3Data.push(mp3buf);
-        }
+        if (mp3buf.length > 0) mp3Data.push(mp3buf);
       }
-
-      // Flush remaining frames
       const endBuf = mp3encoder.flush();
-      if (endBuf.length > 0) {
-        mp3Data.push(endBuf);
-      }
-
+      if (endBuf.length > 0) mp3Data.push(endBuf);
+      
       return new Blob(mp3Data, { type: 'audio/mp3' });
     }
+
+    const downloadBlob = (blob, filename) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none'; a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    };
+
+    // --- TRIMMER LOGIC ---
+    let wavesurfer = null, wsRegions = null, activeRegion = null, originalAudioBuffer = null;
+    const inStart = document.getElementById('input-start-time');
+    const inEnd = document.getElementById('input-end-time');
+    const regDur = document.getElementById('region-duration');
+
+    const syncInputs = (region) => {
+      if(!region) return;
+      inStart.value = region.start.toFixed(3);
+      inEnd.value = region.end.toFixed(3);
+      regDur.textContent = formatTimeDetailed(region.end - region.start);
+    };
+    
+    const updateRegion = () => {
+      if(!activeRegion || !wavesurfer) return;
+      let s = parseFloat(inStart.value) || 0, e = parseFloat(inEnd.value) || 0;
+      if (s >= e) s = Math.max(0, e - 0.05);
+      activeRegion.setOptions({start: s, end: e});
+      syncInputs(activeRegion);
+    };
+
+    [inStart, inEnd].forEach(el => el.addEventListener('change', updateRegion));
+    document.getElementById('btn-start-minus').onclick = () => { inStart.value = Math.max(0, parseFloat(inStart.value)-0.1).toFixed(3); updateRegion(); };
+    document.getElementById('btn-start-plus').onclick = () => { inStart.value = (parseFloat(inStart.value)+0.1).toFixed(3); updateRegion(); };
+    document.getElementById('btn-end-minus').onclick = () => { inEnd.value = Math.max(0, parseFloat(inEnd.value)-0.1).toFixed(3); updateRegion(); };
+    document.getElementById('btn-end-plus').onclick = () => { inEnd.value = (parseFloat(inEnd.value)+0.1).toFixed(3); updateRegion(); };
+
+    async function loadTrimFile(file) {
+      if (!file) return;
+      currentFileName = file.name.replace(/\.[^/.]+$/, "");
+      document.getElementById('trim-track-name').textContent = file.name;
+      toggleLoading(true, "Đang đọc & giải mã âm thanh...", "Sẽ mất vài giây đối với file lớn");
+      
+      const actx = getAudioContext();
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        originalAudioBuffer = await actx.decodeAudioData(arrayBuffer);
+        
+        if (wavesurfer) wavesurfer.destroy();
+        wsRegions = WaveSurfer.Regions.create();
+        wavesurfer = WaveSurfer.create({
+          container: '#waveform', waveColor: '#475569', progressColor: '#6366f1',
+          cursorColor: '#f43f5e', cursorWidth: 2, height: 120, normalize: true,
+          plugins: [ wsRegions, WaveSurfer.Timeline.create({ container: '#wave-timeline', height: 20 }) ]
+        });
+
+        wavesurfer.on('ready', () => {
+          document.getElementById('trim-track-meta').textContent = `Thời lượng: ${formatTimeDetailed(wavesurfer.getDuration())} | ${originalAudioBuffer.sampleRate}Hz`;
+          wsRegions.clearRegions();
+          activeRegion = wsRegions.addRegion({ start: 0, end: Math.min(5, wavesurfer.getDuration()), color: 'rgba(99, 102, 241, 0.28)', drag: true, resize: true });
+          syncInputs(activeRegion);
+          
+          document.getElementById('trim-drop-zone').classList.add('hidden');
+          document.getElementById('trim-editor-panel').classList.remove('hidden');
+          toggleLoading(false);
+          showToast("Đã tải tệp thành công!");
+        });
+        
+        wavesurfer.on('timeupdate', t => document.getElementById('trim-current-time').textContent = formatTimeDetailed(t));
+        wsRegions.on('region-updated', r => { activeRegion = r; syncInputs(r); });
+        
+        const fileUrl = URL.createObjectURL(file);
+        wavesurfer.load(fileUrl);
+      } catch(e) {
+        toggleLoading(false);
+        showToast("Lỗi giải mã audio. Thử file khác!", true);
+      }
+    }
+
+    document.getElementById('trim-audio-input').addEventListener('change', e => { if(e.target.files[0]) loadTrimFile(e.target.files[0]); });
+    
+    // Zoom Logic
+    const zoomSlider = document.getElementById('zoom-slider');
+    const applyZoom = (val) => {
+      val = Math.max(10, Math.min(600, val));
+      zoomSlider.value = val;
+      if(wavesurfer) wavesurfer.zoom(val);
+    };
+    zoomSlider.addEventListener('input', e => applyZoom(parseInt(e.target.value)));
+    document.getElementById('btn-zoom-in').onclick = () => applyZoom(parseInt(zoomSlider.value) + 30);
+    document.getElementById('btn-zoom-out').onclick = () => applyZoom(parseInt(zoomSlider.value) - 30);
+    document.getElementById('waveform-container').addEventListener('wheel', e => {
+      if(e.ctrlKey || e.metaKey) { e.preventDefault(); applyZoom(parseInt(zoomSlider.value) + (e.deltaY < 0 ? 25 : -25)); }
+    }, {passive: false});
+
+    // Playback
+    document.getElementById('btn-play-pause').onclick = () => { if(wavesurfer) wavesurfer.playPause(); };
+    document.getElementById('btn-play-region').onclick = () => { if(activeRegion) activeRegion.play(); };
+    document.getElementById('btn-stop').onclick = () => { if(wavesurfer) { wavesurfer.stop(); wavesurfer.setTime(0); } };
+    
+    // Export Trim
+    document.getElementById('btn-export-cut').onclick = async () => {
+      if(!originalAudioBuffer || !activeRegion) return showToast("Chưa có vùng chọn!", true);
+      
+      const sRate = originalAudioBuffer.sampleRate;
+      const startOffset = Math.floor(activeRegion.start * sRate);
+      const endOffset = Math.floor(activeRegion.end * sRate);
+      const frames = Math.max(0, endOffset - startOffset);
+      if(frames === 0) return showToast("Vùng chọn quá ngắn!", true);
+
+      const actx = getAudioContext();
+      const slicedBuf = actx.createBuffer(originalAudioBuffer.numberOfChannels, frames, sRate);
+      for(let ch=0; ch<originalAudioBuffer.numberOfChannels; ch++){
+        const src = originalAudioBuffer.getChannelData(ch);
+        const dst = slicedBuf.getChannelData(ch);
+        for(let i=0; i<frames; i++) dst[i] = src[startOffset + i];
+      }
+
+      const format = document.getElementById('trim-export-format').value;
+      toggleLoading(true, "Đang xử lý xuất file...", "Xin vui lòng chờ");
+      
+      setTimeout(() => { // delay for UI
+        try {
+          let blob = null, ext = 'wav';
+          if(format === 'wav') blob = encodeAudioBufferToWav(slicedBuf);
+          else {
+            const kbps = parseInt(format.split('-')[1]);
+            blob = encodeAudioBufferToMp3(slicedBuf, kbps);
+            ext = 'mp3';
+          }
+          downloadBlob(blob, `${currentFileName}_cut.${ext}`);
+          showToast("Đã xuất file thành công!");
+        } catch(e) {
+          showToast("Lỗi xuất file!", true);
+        }
+        toggleLoading(false);
+      }, 50);
+    };
+
+    // --- MERGER LOGIC ---
+    let mergeFilesArray = [];
+    const mergeListEl = document.getElementById('merge-file-list');
+    const mergeDropZone = document.getElementById('merge-drop-zone');
+
+    const renderMergeList = () => {
+      if(mergeFilesArray.length === 0) {
+        mergeListEl.classList.add('hidden');
+        mergeDropZone.classList.remove('hidden');
+        return;
+      }
+      mergeDropZone.classList.add('hidden');
+      mergeListEl.classList.remove('hidden');
+      mergeListEl.innerHTML = '';
+      
+      mergeFilesArray.forEach((file, idx) => {
+        const li = document.createElement('li');
+        li.className = "flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 transition";
+        li.innerHTML = `
+          <div class="flex items-center gap-3 overflow-hidden">
+            <span class="w-7 h-7 flex-shrink-0 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center text-xs font-bold">${idx + 1}</span>
+            <i class="fa-solid fa-music text-indigo-400"></i>
+            <span class="text-sm font-medium truncate text-slate-200" title="${file.name}">${file.name}</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="moveMergeItem(${idx}, -1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-300 transition disabled:opacity-30 disabled:hover:bg-slate-800" ${idx === 0 ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button>
+            <button onclick="moveMergeItem(${idx}, 1)" class="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-300 transition disabled:opacity-30 disabled:hover:bg-slate-800" ${idx === mergeFilesArray.length-1 ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
+            <button onclick="removeMergeItem(${idx})" class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition ml-2"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        `;
+        mergeListEl.appendChild(li);
+      });
+    };
+
+    window.moveMergeItem = (idx, dir) => {
+      const newIdx = idx + dir;
+      if(newIdx < 0 || newIdx >= mergeFilesArray.length) return;
+      [mergeFilesArray[idx], mergeFilesArray[newIdx]] = [mergeFilesArray[newIdx], mergeFilesArray[idx]];
+      renderMergeList();
+    };
+
+    window.removeMergeItem = (idx) => {
+      mergeFilesArray.splice(idx, 1);
+      renderMergeList();
+    };
+
+    const handleMergeUpload = (files) => {
+      for(let i=0; i<files.length; i++) {
+        if(files[i].type.startsWith('audio/')) mergeFilesArray.push(files[i]);
+      }
+      renderMergeList();
+    };
+
+    document.getElementById('merge-audio-input').addEventListener('change', e => { handleMergeUpload(e.target.files); e.target.value = ''; });
+    mergeDropZone.addEventListener('click', () => document.getElementById('merge-audio-input').click());
+    
+    // Drag and drop global setup for both zones
+    ['trim-drop-zone', 'merge-drop-zone'].forEach(id => {
+      const el = document.getElementById(id);
+      el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+      el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+      el.addEventListener('drop', e => {
+        e.preventDefault(); el.classList.remove('drag-over');
+        if(e.dataTransfer.files.length > 0) {
+          if(id === 'trim-drop-zone') loadTrimFile(e.dataTransfer.files[0]);
+          else handleMergeUpload(e.dataTransfer.files);
+        }
+      });
+    });
+
+    // Execute Merge
+    document.getElementById('btn-export-merge').onclick = async () => {
+      if(mergeFilesArray.length < 2) return showToast("Vui lòng thêm ít nhất 2 tệp để ghép!", true);
+      
+      toggleLoading(true, "Đang giải mã và ghép nhạc...", "Quá trình này có thể mất thời gian tuỳ vào dung lượng file.");
+      
+      // Allow UI to paint loading state
+      setTimeout(async () => {
+        try {
+          const actx = getAudioContext();
+          const decodedBuffers = [];
+          
+          for(let i=0; i<mergeFilesArray.length; i++) {
+            document.getElementById('loading-sub-text').textContent = `Đang xử lý tệp ${i+1}/${mergeFilesArray.length}...`;
+            const arrayBuf = await mergeFilesArray[i].arrayBuffer();
+            const audioBuf = await actx.decodeAudioData(arrayBuf);
+            decodedBuffers.push(audioBuf);
+          }
+
+          document.getElementById('loading-sub-text').textContent = "Đang tổng hợp các track âm thanh...";
+          
+          // Calculate max channels and total length (frames)
+          let totalLength = 0;
+          let maxChannels = 1;
+          const sRate = decodedBuffers[0].sampleRate; // Rely on Context Sample Rate natively handled by decodeAudioData
+          
+          for(let b of decodedBuffers) {
+            totalLength += b.length;
+            if(b.numberOfChannels > maxChannels) maxChannels = b.numberOfChannels;
+          }
+
+          // Create concatenated buffer
+          const mergedBuffer = actx.createBuffer(maxChannels, totalLength, sRate);
+          let offset = 0;
+
+          for(let b of decodedBuffers) {
+            for(let ch=0; ch<maxChannels; ch++) {
+              const destChannel = mergedBuffer.getChannelData(ch);
+              // Handle mono to stereo expansion if needed
+              const srcChannel = b.getChannelData(ch < b.numberOfChannels ? ch : 0);
+              destChannel.set(srcChannel, offset);
+            }
+            offset += b.length;
+          }
+
+          document.getElementById('loading-sub-text').textContent = "Đang mã hóa định dạng xuất...";
+          await new Promise(res => setTimeout(res, 50)); // UI breathe
+          
+          const format = document.getElementById('merge-export-format').value;
+          let blob = null, ext = 'wav';
+          if(format === 'wav') {
+            blob = encodeAudioBufferToWav(mergedBuffer);
+          } else {
+            const kbps = parseInt(format.split('-')[1]);
+            blob = encodeAudioBufferToMp3(mergedBuffer, kbps);
+            ext = 'mp3';
+          }
+
+          downloadBlob(blob, `Merged_Audio_Track.${ext}`);
+          showToast("Ghép & tải tệp thành công!");
+          
+        } catch(e) {
+          console.error(e);
+          showToast("Đã xảy ra lỗi trong quá trình ghép nhạc!", true);
+        } finally {
+          toggleLoading(false);
+        }
+      }, 100);
+    };
+
   </script>
 </body>
 </html>
