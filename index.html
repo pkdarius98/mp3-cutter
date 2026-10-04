@@ -51,7 +51,7 @@
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8 antialiased selection:bg-indigo-600 selection:text-white">
 
   <div class="w-full max-w-5xl mx-auto space-y-6">
     <!-- Header -->
@@ -69,20 +69,36 @@
       </div>
 
       <!-- File upload button / drag trigger -->
-      <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition rounded-xl font-medium text-sm shadow-md shadow-indigo-600/25">
-        <i class="ph ph-upload-simple text-lg"></i>
-        <span>Chọn File Âm Thanh</span>
+      <label id="upload-btn-label" class="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition rounded-xl font-medium text-sm shadow-md shadow-indigo-600/25">
+        <i class="ph ph-upload-simple text-lg" id="upload-btn-icon"></i>
+        <span id="upload-btn-text">Chọn File Âm Thanh</span>
         <input type="file" id="audio-input" accept="audio/*" class="hidden">
       </label>
     </header>
 
-    <!-- Empty state notice -->
-    <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-900/40 rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition">
+    <!-- Empty state notice & Drop zone -->
+    <div id="drop-zone" class="relative border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-900/40 rounded-2xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition overflow-hidden min-h-[220px]">
       <div class="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center mb-3 text-indigo-400">
         <i class="ph ph-music-notes text-3xl"></i>
       </div>
       <p class="text-base font-semibold text-slate-200">Kéo thả file âm thanh (MP3, WAV, AAC, OGG...) vào đây</p>
       <p class="text-xs text-slate-500 mt-1">hoặc nhấn vào nút tải lên phía trên</p>
+
+      <!-- Processing / Loading Overlay (Shown during file decode) -->
+      <div id="loading-overlay" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm hidden flex flex-col items-center justify-center gap-4 z-20 transition-opacity">
+        <div class="relative w-14 h-14">
+          <div class="w-14 h-14 rounded-full border-4 border-slate-800 border-t-indigo-500 animate-spin"></div>
+          <i class="ph ph-waveform absolute inset-0 flex items-center justify-center text-indigo-400 text-xl animate-pulse"></i>
+        </div>
+        <div class="text-center space-y-1">
+          <p id="loading-status-text" class="text-sm font-semibold text-indigo-300">Đang đọc tệp tin...</p>
+          <p class="text-xs text-slate-400">Vui lòng chờ trong giây lát</p>
+        </div>
+        <!-- Simple step indicator bar -->
+        <div class="w-48 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div id="loading-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-violet-500 w-1/3 transition-all duration-300"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Main Editor Interface (hidden until audio loaded) -->
@@ -238,7 +254,13 @@
 
     // DOM Elements
     const audioInput = document.getElementById('audio-input');
+    const uploadBtnLabel = document.getElementById('upload-btn-label');
+    const uploadBtnIcon = document.getElementById('upload-btn-icon');
+    const uploadBtnText = document.getElementById('upload-btn-text');
     const dropZone = document.getElementById('drop-zone');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingStatusText = document.getElementById('loading-status-text');
+    const loadingProgressBar = document.getElementById('loading-progress-bar');
     const editorPanel = document.getElementById('editor-panel');
     const trackName = document.getElementById('track-name');
     const trackMeta = document.getElementById('track-meta');
@@ -300,6 +322,27 @@
       }, 3500);
     }
 
+    function setFileLoadingState(loading, stepText = '', progressPct = 0) {
+      if (loading) {
+        // Disable and style upload triggers
+        audioInput.disabled = true;
+        uploadBtnLabel.classList.add('opacity-50', 'pointer-events-none');
+        uploadBtnIcon.className = "ph ph-spinner animate-spin text-lg";
+        uploadBtnText.textContent = "Đang xử lý...";
+        
+        // Show dropzone overlay
+        loadingOverlay.classList.remove('hidden');
+        loadingStatusText.textContent = stepText;
+        loadingProgressBar.style.width = `${progressPct}%`;
+      } else {
+        audioInput.disabled = false;
+        uploadBtnLabel.classList.remove('opacity-50', 'pointer-events-none');
+        uploadBtnIcon.className = "ph ph-upload-simple text-lg";
+        uploadBtnText.textContent = "Chọn File Âm Thanh";
+        loadingOverlay.classList.add('hidden');
+      }
+    }
+
     function initWaveSurfer() {
       if (wavesurfer) {
         wavesurfer.destroy();
@@ -354,6 +397,12 @@
         });
 
         syncInputsFromRegion(activeRegion);
+        
+        // Hide loading state and display editor panel
+        setFileLoadingState(false);
+        dropZone.classList.add('hidden');
+        editorPanel.classList.remove('hidden');
+        showToast("Đã tải xong tệp âm thanh thành công!");
       });
 
       wavesurfer.on('timeupdate', (currentTime) => {
@@ -465,24 +514,37 @@
       currentFileName = file.name.replace(/\.[^/.]+$/, "");
       trackName.textContent = file.name;
 
+      // Step 1: Start loading and display spinner
+      setFileLoadingState(true, "Đang đọc tệp tin...", 25);
+      // Allow browser to render UI before heavy work
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
       }
 
       try {
+        // Read file ArrayBuffer
         const arrayBuffer = await file.arrayBuffer();
+
+        // Step 2: Decode AudioBuffer
+        setFileLoadingState(true, "Đang giải mã âm thanh (Web Audio API)...", 60);
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         const bufferCopy = arrayBuffer.slice(0);
         originalAudioBuffer = await audioContext.decodeAudioData(bufferCopy);
+
+        // Step 3: Initialize WaveSurfer & Timeline
+        setFileLoadingState(true, "Đang tạo biểu đồ sóng âm (WaveSurfer)...", 90);
+        await new Promise(resolve => setTimeout(resolve, 50));
 
         initWaveSurfer();
         const fileBlobUrl = URL.createObjectURL(file);
         wavesurfer.load(fileBlobUrl);
 
-        dropZone.classList.add('hidden');
-        editorPanel.classList.remove('hidden');
-        showToast("Đã tải xong tệp âm thanh thành công!");
       } catch (err) {
         console.error("Lỗi giải mã audio:", err);
+        setFileLoadingState(false);
         showToast("Không thể giải mã file âm thanh này. Vui lòng thử file khác!", true);
       }
     }
@@ -494,10 +556,16 @@
     });
 
     // Drag and drop handlers
-    dropZone.addEventListener('click', () => audioInput.click());
+    dropZone.addEventListener('click', () => {
+      if (!audioInput.disabled) {
+        audioInput.click();
+      }
+    });
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.classList.add('border-indigo-500', 'bg-indigo-950/20');
+      if (!audioInput.disabled) {
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-950/20');
+      }
     });
     dropZone.addEventListener('dragleave', () => {
       dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
@@ -505,7 +573,7 @@
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
-      if (e.dataTransfer.files.length > 0) {
+      if (!audioInput.disabled && e.dataTransfer.files.length > 0) {
         loadAudioFile(e.dataTransfer.files[0]);
       }
     });
@@ -527,7 +595,6 @@
       }
     });
 
-    // Export handler with format options (WAV / MP3)
     btnExportCut.addEventListener('click', async () => {
       if (!originalAudioBuffer || !activeRegion) {
         showToast("Chưa chọn vùng để cắt!", true);
@@ -613,7 +680,6 @@
       }
     });
 
-    // Helper: Encode PCM 16-bit WAV header and sample block
     function encodeAudioBufferToWav(buffer) {
       const numChannels = buffer.numberOfChannels;
       const sampleRate = buffer.sampleRate;
@@ -669,7 +735,6 @@
       return new Blob([view], { type: 'audio/wav' });
     }
 
-    // Helper: Encode AudioBuffer to MP3 using lamejs
     function encodeAudioBufferToMp3(buffer, bitrate = 192) {
       if (typeof lamejs === 'undefined') {
         throw new Error("Thư viện lamejs chưa được nạp.");
