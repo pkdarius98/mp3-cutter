@@ -179,7 +179,10 @@
               <input type="range" id="zoom-slider" min="10" max="600" value="50" step="5" class="flex-1 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
               <button id="btn-zoom-in" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition"><i class="fa-solid fa-plus"></i></button>
             </div>
-            <div class="hidden sm:block text-xs text-slate-400"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Ctrl + Lăn chuột</span> để zoom</div>
+            <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+              <span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-slate-300"><i class="fa-solid fa-arrows-left-right text-indigo-400 mr-1"></i>Kéo chuột</span> để chọn vùng
+              <span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700 text-slate-300">Ctrl + Lăn chuột</span> để zoom
+            </div>
           </div>
           
           <div id="waveform-container" class="relative w-full bg-slate-950/90 rounded-xl p-2 border border-slate-800/70 select-none overflow-hidden min-h-[160px]">
@@ -201,8 +204,13 @@
 
         <!-- Region Fine-Tuning -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2">
-            <div class="flex justify-between text-xs text-slate-400 font-medium"><span>BẮT ĐẦU (START)</span><i class="fa-solid fa-arrow-right-to-bracket text-indigo-400"></i></div>
+          <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5">
+            <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-arrow-right-to-bracket text-indigo-400"></i> BẮT ĐẦU (START)</span>
+              <button id="btn-set-start-current" class="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 hover:border-indigo-500 rounded-lg text-xs font-medium transition active:scale-95 shadow-sm" title="Đặt điểm bắt đầu theo vị trí con trỏ phát hiện tại (Phím tắt: [)">
+                <i class="fa-solid fa-thumbtack text-[10px]"></i> Lấy mốc hiện tại
+              </button>
+            </div>
             <div class="flex gap-2">
               <button id="btn-start-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">-0.1s</button>
               <input type="text" id="input-start-time" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none transition" value="00:00:00.000">
@@ -212,9 +220,17 @@
           <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2 flex flex-col justify-center items-center text-center">
             <span class="text-xs text-slate-400 font-medium">ĐỘ DÀI VÙNG CHỌN</span>
             <span id="region-duration" class="font-mono text-2xl font-bold text-emerald-400">00:00:00.000</span>
+            <button id="btn-play-region" class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white rounded-lg text-xs font-medium transition active:scale-95" title="Nghe thử đoạn đang chọn">
+              <i class="fa-solid fa-play text-[10px]"></i> Nghe vùng chọn
+            </button>
           </div>
-          <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2">
-            <div class="flex justify-between text-xs text-slate-400 font-medium"><span>KẾT THÚC (END)</span><i class="fa-solid fa-arrow-right-from-bracket text-indigo-400"></i></div>
+          <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl space-y-2.5">
+            <div class="flex justify-between items-center text-xs text-slate-400 font-medium">
+              <span class="flex items-center gap-1.5"><i class="fa-solid fa-arrow-right-from-bracket text-indigo-400"></i> KẾT THÚC (END)</span>
+              <button id="btn-set-end-current" class="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 hover:border-indigo-500 rounded-lg text-xs font-medium transition active:scale-95 shadow-sm" title="Đặt điểm kết thúc theo vị trí con trỏ phát hiện tại (Phím tắt: ])">
+                <i class="fa-solid fa-thumbtack text-[10px]"></i> Lấy mốc hiện tại
+              </button>
+            </div>
             <div class="flex gap-2">
               <button id="btn-end-minus" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono">-0.1s</button>
               <input type="text" id="input-end-time" class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-lg py-1.5 text-center font-mono text-indigo-300 outline-none transition" value="00:00:00.000">
@@ -539,6 +555,69 @@
       inEnd.value = formatTimeDetailed(parseTimeStr(inEnd.value) + 0.1); updateRegion(); 
     };
 
+    const setStartToCurrent = () => {
+      if (!wavesurfer) return;
+      const curTime = wavesurfer.getCurrentTime();
+      const totalDur = wavesurfer.getDuration();
+      if (!activeRegion) {
+        activeRegion = wsRegions.addRegion({
+          start: curTime,
+          end: Math.min(totalDur, curTime + 5),
+          color: 'rgba(99, 102, 241, 0.28)',
+          drag: true,
+          resize: true
+        });
+      } else {
+        let newEnd = activeRegion.end;
+        if (curTime >= activeRegion.end) {
+          newEnd = Math.min(totalDur, curTime + 5);
+        }
+        activeRegion.setOptions({ start: curTime, end: newEnd });
+      }
+      syncInputs(activeRegion);
+      showToast(`Điểm bắt đầu: ${formatTimeDetailed(activeRegion.start)}`);
+    };
+
+    const setEndToCurrent = () => {
+      if (!wavesurfer) return;
+      const curTime = wavesurfer.getCurrentTime();
+      if (!activeRegion) {
+        activeRegion = wsRegions.addRegion({
+          start: Math.max(0, curTime - 5),
+          end: curTime,
+          color: 'rgba(99, 102, 241, 0.28)',
+          drag: true,
+          resize: true
+        });
+      } else {
+        let newStart = activeRegion.start;
+        if (curTime <= activeRegion.start) {
+          newStart = Math.max(0, curTime - 5);
+        }
+        activeRegion.setOptions({ start: newStart, end: curTime });
+      }
+      syncInputs(activeRegion);
+      showToast(`Điểm kết thúc: ${formatTimeDetailed(activeRegion.end)}`);
+    };
+
+    document.getElementById('btn-set-start-current').onclick = setStartToCurrent;
+    document.getElementById('btn-set-end-current').onclick = setEndToCurrent;
+
+    document.getElementById('btn-play-region').onclick = () => {
+      if (!wavesurfer || !activeRegion) return;
+      if (currentCutListener) wavesurfer.un('timeupdate', currentCutListener);
+      wavesurfer.setTime(activeRegion.start);
+      wavesurfer.play();
+      currentCutListener = (t) => {
+        if (t >= activeRegion.end) {
+          wavesurfer.pause();
+          wavesurfer.un('timeupdate', currentCutListener);
+          currentCutListener = null;
+        }
+      };
+      wavesurfer.on('timeupdate', currentCutListener);
+    };
+
     const cutListContainer = document.getElementById('cut-list-container');
     const cutListItems = document.getElementById('cut-list-items');
     const cutCountBadge = document.getElementById('cut-count-badge');
@@ -696,18 +775,55 @@
 
           activeRegion = wsRegions.addRegion({ start: start, end: end, color: 'rgba(99, 102, 241, 0.28)', drag: true, resize: true });
           syncInputs(activeRegion);
+
+          // Bật tính năng kéo chuột trên sóng âm để chọn vùng thời gian (A -> B)
+          wsRegions.enableDragSelection({
+            color: 'rgba(99, 102, 241, 0.28)',
+            drag: true,
+            resize: true
+          });
           
           showToast("Đã tải tệp thành công!");
         });
 
-        wavesurfer.on('error', err => {
-          console.error(err);
-          if (trimLoader) trimLoader.classList.add('hidden');
-          showToast("Lỗi tải tệp âm thanh!", true);
+        // Bắt sự kiện khi kéo chuột xong tạo vùng chọn mới
+        wsRegions.on('region-created', (newRegion) => {
+          if (newRegion.end - newRegion.start < 0.1) {
+            newRegion.remove();
+            return;
+          }
+          if (activeRegion && activeRegion !== newRegion) {
+            activeRegion.remove();
+          }
+          activeRegion = newRegion;
+          newRegion.setOptions({
+            color: 'rgba(99, 102, 241, 0.28)',
+            drag: true,
+            resize: true
+          });
+          syncInputs(activeRegion);
         });
-        
-        wavesurfer.on('timeupdate', t => document.getElementById('trim-current-time').textContent = formatTimeDetailed(t));
+
         wsRegions.on('region-updated', r => { activeRegion = r; syncInputs(r); });
+        wsRegions.on('region-clicked', (r, e) => { e.stopPropagation(); activeRegion = r; syncInputs(r); });
+
+        wavesurfer.on('play', () => {
+          const icon = document.getElementById('play-icon');
+          const text = document.getElementById('play-text');
+          if (icon) icon.className = 'fa-solid fa-pause text-indigo-400';
+          if (text) text.textContent = 'Tạm dừng';
+        });
+
+        wavesurfer.on('pause', () => {
+          const icon = document.getElementById('play-icon');
+          const text = document.getElementById('play-text');
+          if (icon) icon.className = 'fa-solid fa-play text-indigo-400';
+          if (text) text.textContent = 'Phát / Tạm dừng';
+        });
+
+        wavesurfer.on('timeupdate', t => {
+          document.getElementById('trim-current-time').textContent = formatTimeDetailed(t);
+        });
         
         const fileUrl = URL.createObjectURL(file);
         wavesurfer.load(fileUrl);
@@ -740,6 +856,25 @@
 
     document.getElementById('btn-play-pause').onclick = () => { if(wavesurfer) wavesurfer.playPause(); };
     document.getElementById('btn-stop').onclick = () => { if(wavesurfer) { wavesurfer.stop(); wavesurfer.setTime(0); } };
+
+    // Phím tắt bàn phím: [ (Start), ] (End), Space (Play/Pause)
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      const tabTrim = document.getElementById('tab-trim');
+      if (!tabTrim || !tabTrim.classList.contains('active')) return;
+      if (!wavesurfer) return;
+
+      if (e.key === '[' || e.key === '{') {
+        e.preventDefault();
+        setStartToCurrent();
+      } else if (e.key === ']' || e.key === '}') {
+        e.preventDefault();
+        setEndToCurrent();
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        wavesurfer.playPause();
+      }
+    });
     
     document.getElementById('btn-export-cut').onclick = async () => {
       if(!originalAudioBuffer) return showToast("Chưa tải file âm thanh!", true);
