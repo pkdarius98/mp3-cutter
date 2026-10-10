@@ -301,14 +301,7 @@
         <!-- Waveform Viewport -->
         <div id="merge-waveform-container" class="relative w-full bg-slate-950/90 rounded-xl p-2 border border-slate-800/70 select-none overflow-hidden">
           <canvas id="merge-waveform-canvas" class="w-full h-[140px] block cursor-pointer"></canvas>
-        </div>
-
-        <!-- Timeline Seek Bar & Track Segments -->
-        <div class="space-y-2">
-          <input type="range" id="merge-seek-slider" min="0" max="100" value="0" step="0.01" class="w-full cursor-pointer">
-          <div id="merge-segment-bar" class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden flex border border-slate-800/80">
-            <!-- Proportional segments injected via JS -->
-          </div>
+          <div id="merge-waveform-loaders" class="pointer-events-none absolute inset-2 bottom-[24px] overflow-hidden"></div>
         </div>
       </div>
 
@@ -785,19 +778,34 @@
     const mergeStatusIcon = document.getElementById('merge-status-icon');
     const mergeCurrentTimeEl = document.getElementById('merge-current-time');
     const mergeTotalTimeEl = document.getElementById('merge-total-time');
-    const mergeSeekSlider = document.getElementById('merge-seek-slider');
-    const mergeSegmentBar = document.getElementById('merge-segment-bar');
     const mergeWaveformCanvas = document.getElementById('merge-waveform-canvas');
+    const mergeWaveformLoaders = document.getElementById('merge-waveform-loaders');
 
     let sortableInstance = null;
     let activeMergeItem = null;
     let isMergePlaying = false;
     let mergePlayMode = 'all'; // 'all' (toàn bộ bản ghép) hoặc 'single' (từng tệp)
     let isScrubbingMerge = false;
+    let scrubbingMergeTime = 0;
     let mergeRafId = null;
 
     const getTotalMergeDuration = () => {
       return mergeFilesArray.reduce((sum, f) => sum + (f._duration || 0), 0);
+    };
+
+    // Thời lượng hiển thị trên sóng âm (đảm bảo file đang tải vẫn có khung hiển thị spinner)
+    const getVisualDuration = (file) => {
+      if (file._duration && file._duration > 0) return file._duration;
+      const loadedFiles = mergeFilesArray.filter(f => f._duration > 0);
+      if (loadedFiles.length > 0) {
+        const avg = loadedFiles.reduce((s, f) => s + f._duration, 0) / loadedFiles.length;
+        return Math.max(10, avg);
+      }
+      return 30;
+    };
+
+    const getTotalVisualDuration = () => {
+      return mergeFilesArray.reduce((sum, f) => sum + getVisualDuration(f), 0);
     };
 
     const getElapsedBeforeItem = (item) => {
@@ -811,7 +819,7 @@
 
     const getCurrentMergeGlobalTime = () => {
       if (isScrubbingMerge) {
-        return parseFloat(mergeSeekSlider.value) || 0;
+        return scrubbingMergeTime;
       }
       if (activeMergeItem && mergeFilesArray.includes(activeMergeItem)) {
         return getElapsedBeforeItem(activeMergeItem) + (activeMergeItem._audio ? activeMergeItem._audio.currentTime : 0);
@@ -825,8 +833,43 @@
       return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
+    const updateWaveformLoadersOverlay = () => {
+      if (!mergeWaveformLoaders) return;
+      const totalVisDur = getTotalVisualDuration();
+      if (mergeFilesArray.length === 0 || totalVisDur <= 0) {
+        mergeWaveformLoaders.innerHTML = '';
+        return;
+      }
+
+      let accVis = 0;
+      let html = '';
+      mergeFilesArray.forEach((file, idx) => {
+        const vDur = getVisualDuration(file);
+        const leftPct = (accVis / totalVisDur) * 100;
+        const widthPct = (vDur / totalVisDur) * 100;
+        accVis += vDur;
+
+        if (!file._peaks && !file._peakError) {
+          html += `
+            <div style="left: ${leftPct}%; width: ${widthPct}%;" class="absolute top-0 bottom-0 flex flex-col items-center justify-center gap-1.5 bg-slate-950/60 backdrop-blur-[1px] px-2 text-center">
+              <div class="relative w-10 h-10 flex-shrink-0">
+                <div class="w-10 h-10 rounded-full border-4 border-slate-800 border-t-indigo-500 animate-spin"></div>
+                <i class="fa-solid fa-music absolute inset-0 flex items-center justify-center text-indigo-400 text-xs animate-pulse"></i>
+              </div>
+              <span class="text-[11px] font-medium text-indigo-300 truncate max-w-full">Đang tải #${idx + 1}: ${file.name}</span>
+            </div>
+          `;
+        }
+      });
+      if (mergeWaveformLoaders.innerHTML !== html) {
+        mergeWaveformLoaders.innerHTML = html;
+      }
+    };
+
     const drawMergeWaveform = () => {
       if (!mergeWaveformCanvas || mergePreviewPanel.classList.contains('hidden')) return;
+      updateWaveformLoadersOverlay();
+
       const rect = mergeWaveformCanvas.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
 
@@ -849,6 +892,7 @@
       const centerY = waveAreaHeight / 2;
       const maxBarHalfHeight = (waveAreaHeight / 2) - 10;
 
+      const totalVisDur = getTotalVisualDuration();
       const totalDur = getTotalMergeDuration();
       const currentGlobal = getCurrentMergeGlobalTime();
 
@@ -860,11 +904,7 @@
       ctx.lineTo(width, centerY);
       ctx.stroke();
 
-      if (totalDur <= 0 || mergeFilesArray.length === 0) {
-        ctx.fillStyle = '#64748b';
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Đang phân tích sóng âm...', width / 2, centerY + 4);
+      if (totalVisDur <= 0 || mergeFilesArray.length === 0) {
         ctx.restore();
         return;
       }
@@ -879,9 +919,9 @@
       ];
 
       mergeFilesArray.forEach((file, idx) => {
-        const dur = file._duration || 0;
-        const startX = (accDur / totalDur) * width;
-        const segW = (dur / totalDur) * width;
+        const dur = getVisualDuration(file);
+        const startX = (accDur / totalVisDur) * width;
+        const segW = (dur / totalVisDur) * width;
 
         ctx.fillStyle = (activeMergeItem === file && isMergePlaying)
           ? 'rgba(99, 102, 241, 0.13)'
@@ -891,38 +931,39 @@
         accDur += dur;
       });
 
-      // Vẽ các cột sóng âm (bar style giống WaveSurfer)
+      // Vẽ các cột sóng âm (chỉ vẽ cho các file đã giải mã xong, không vẽ hình mặc định)
       const barWidth = 2;
       const barGap = 1;
       const stepPx = barWidth + barGap;
-      const progressX = Math.max(0, Math.min(width, (currentGlobal / totalDur) * width));
+      const progressX = totalDur > 0 ? Math.max(0, Math.min(width, (currentGlobal / totalVisDur) * width)) : 0;
 
       for (let x = 0; x < width; x += stepPx) {
-        const timeAtX = ((x + barWidth / 2) / width) * totalDur;
+        const timeAtX = ((x + barWidth / 2) / width) * totalVisDur;
 
         // Xác định thuộc file nào
         let acc = 0;
         let targetFile = null;
         let localTime = 0;
+        let fileVisDur = 0;
         for (const f of mergeFilesArray) {
-          const d = f._duration || 0;
+          const d = getVisualDuration(f);
           if (timeAtX <= acc + d) {
             targetFile = f;
             localTime = timeAtX - acc;
+            fileVisDur = d;
             break;
           }
           acc += d;
         }
 
-        let amp = 0.05;
-        if (targetFile && targetFile._peaks && targetFile._duration > 0) {
-          const ratio = Math.max(0, Math.min(0.9999, localTime / targetFile._duration));
-          const peakIdx = Math.floor(ratio * targetFile._peaks.length);
-          amp = Math.max(0.04, targetFile._peaks[peakIdx]);
-        } else {
-          // Hiệu ứng sóng chờ khi file đang giải mã
-          amp = 0.15 + 0.1 * Math.sin(x * 0.08);
+        if (!targetFile || !targetFile._peaks || fileVisDur <= 0) {
+          // Đang tải sóng âm: để trống vùng này cho Spinner Loading hiển thị
+          continue;
         }
+
+        const ratio = Math.max(0, Math.min(0.9999, localTime / fileVisDur));
+        const peakIdx = Math.floor(ratio * targetFile._peaks.length);
+        const amp = Math.max(0.04, targetFile._peaks[peakIdx]);
 
         const halfH = Math.max(1.5, amp * maxBarHalfHeight);
         ctx.fillStyle = x <= progressX ? '#6366f1' : '#475569';
@@ -932,9 +973,9 @@
       // Vẽ đường ranh giới chuyển bài & nhãn tên bài trên sóng âm
       accDur = 0;
       mergeFilesArray.forEach((file, idx) => {
-        const dur = file._duration || 0;
-        const startX = (accDur / totalDur) * width;
-        const segW = (dur / totalDur) * width;
+        const dur = getVisualDuration(file);
+        const startX = (accDur / totalVisDur) * width;
+        const segW = (dur / totalVisDur) * width;
 
         if (idx > 0) {
           ctx.save();
@@ -948,7 +989,7 @@
           ctx.restore();
         }
 
-        if (segW > 38) {
+        if (segW > 38 && file._peaks) {
           const label = `#${idx + 1} ${file.name}`;
           ctx.save();
           ctx.beginPath();
@@ -978,24 +1019,26 @@
       ctx.lineTo(width, waveAreaHeight);
       ctx.stroke();
 
-      const approxTicks = Math.max(4, Math.floor(width / 90));
-      const rawStep = totalDur / approxTicks;
-      const niceSteps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
-      let tickStep = niceSteps.find(s => s >= rawStep) || Math.ceil(rawStep);
+      if (totalDur > 0) {
+        const approxTicks = Math.max(4, Math.floor(width / 90));
+        const rawStep = totalVisDur / approxTicks;
+        const niceSteps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+        let tickStep = niceSteps.find(s => s >= rawStep) || Math.ceil(rawStep);
 
-      ctx.fillStyle = '#6b7280';
-      ctx.strokeStyle = '#334155';
-      ctx.font = '11px monospace';
-      ctx.textAlign = 'left';
+        ctx.fillStyle = '#6b7280';
+        ctx.strokeStyle = '#334155';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'left';
 
-      for (let t = 0; t <= totalDur; t += tickStep) {
-        const tx = (t / totalDur) * width;
-        ctx.beginPath();
-        ctx.moveTo(tx, waveAreaHeight);
-        ctx.lineTo(tx, waveAreaHeight + 5);
-        ctx.stroke();
-        if (tx + 36 < width) {
-          ctx.fillText(formatShortTimeline(t), tx + 3, height - 6);
+        for (let t = 0; t <= totalVisDur; t += tickStep) {
+          const tx = (t / totalVisDur) * width;
+          ctx.beginPath();
+          ctx.moveTo(tx, waveAreaHeight);
+          ctx.lineTo(tx, waveAreaHeight + 5);
+          ctx.stroke();
+          if (tx + 36 < width) {
+            ctx.fillText(formatShortTimeline(t), tx + 3, height - 6);
+          }
         }
       }
 
@@ -1040,39 +1083,9 @@
     const updateMergeTimeUI = () => {
       const totalDur = getTotalMergeDuration();
       mergeTotalTimeEl.textContent = formatTimeDetailed(totalDur);
-      mergeSeekSlider.max = totalDur > 0 ? totalDur : 100;
 
       const currentGlobal = getCurrentMergeGlobalTime();
       mergeCurrentTimeEl.textContent = formatTimeDetailed(currentGlobal);
-      if (!isScrubbingMerge) {
-        mergeSeekSlider.value = currentGlobal;
-      }
-    };
-
-    const renderMergeSegments = () => {
-      const totalDur = getTotalMergeDuration();
-      mergeSegmentBar.innerHTML = '';
-      if (totalDur <= 0 || mergeFilesArray.length === 0) return;
-
-      const segmentColors = [
-        'bg-indigo-500/70 hover:bg-indigo-400',
-        'bg-violet-500/70 hover:bg-violet-400',
-        'bg-sky-500/70 hover:bg-sky-400',
-        'bg-emerald-500/70 hover:bg-emerald-400'
-      ];
-
-      mergeFilesArray.forEach((file, idx) => {
-        const dur = file._duration || 0;
-        const pct = Math.max(1, (dur / totalDur) * 100);
-        const seg = document.createElement('div');
-        const isCurrent = activeMergeItem === file && isMergePlaying;
-        const colorClass = segmentColors[idx % segmentColors.length];
-        seg.style.width = `${pct}%`;
-        seg.className = `h-full transition-all cursor-pointer ${colorClass} ${idx < mergeFilesArray.length - 1 ? 'border-r border-slate-950' : ''} ${isCurrent ? 'ring-1 ring-white brightness-125' : 'opacity-75'}`;
-        seg.title = `#${idx + 1}: ${file.name} (${formatTimeDetailed(dur)}) - Nhấn để phát từ đoạn này`;
-        seg.onclick = () => playMergeFromItem(file._uid, 'all');
-        mergeSegmentBar.appendChild(seg);
-      });
     };
 
     const syncMergePlayerUI = () => {
@@ -1105,6 +1118,8 @@
       const rows = mergeListEl.querySelectorAll('li[data-uid]');
       rows.forEach((li, index) => {
         const uid = li.getAttribute('data-uid');
+        const fileObj = mergeFilesArray.find(f => f._uid === uid);
+        const isItemLoading = fileObj && !fileObj._peaks && !fileObj._peakError;
         const isItemPlaying = isMergePlaying && activeMergeItem && activeMergeItem._uid === uid;
         const badge = li.querySelector('.index-badge');
         if (badge) badge.textContent = index + 1;
@@ -1113,6 +1128,31 @@
           li.className = "flex items-center justify-between p-3 bg-indigo-950/30 border border-indigo-500/60 rounded-xl transition";
         } else {
           li.className = "flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 transition";
+        }
+
+        const iconSlot = li.querySelector('.item-icon-slot');
+        if (iconSlot) {
+          if (isItemLoading) {
+            iconSlot.innerHTML = `
+              <div class="relative w-5 h-5 flex-shrink-0" title="Đang giải mã sóng âm...">
+                <div class="w-5 h-5 rounded-full border-2 border-slate-800 border-t-indigo-500 animate-spin"></div>
+                <i class="fa-solid fa-music absolute inset-0 flex items-center justify-center text-indigo-400 text-[8px] animate-pulse"></i>
+              </div>
+            `;
+          } else {
+            iconSlot.innerHTML = `<i class="fa-solid fa-music text-indigo-400 flex-shrink-0"></i>`;
+          }
+        }
+
+        const durEl = li.querySelector('.item-duration');
+        if (durEl && fileObj) {
+          if (isItemLoading) {
+            durEl.textContent = 'Đang đọc & giải mã âm thanh...';
+            durEl.className = 'item-duration text-xs text-indigo-400 font-medium animate-pulse';
+          } else {
+            durEl.textContent = fileObj._duration > 0 ? formatTimeDetailed(fileObj._duration) : '00:00:00.000';
+            durEl.className = 'item-duration text-xs text-slate-400 font-mono';
+          }
         }
 
         const playBtn = li.querySelector('.btn-item-preview');
@@ -1129,7 +1169,6 @@
       });
 
       updateMergeTimeUI();
-      renderMergeSegments();
       drawMergeWaveform();
     };
 
@@ -1252,19 +1291,6 @@
       stopMergePreview();
     };
 
-    mergeSeekSlider.addEventListener('input', () => {
-      isScrubbingMerge = true;
-      const targetGlobalTime = parseFloat(mergeSeekSlider.value) || 0;
-      mergeCurrentTimeEl.textContent = formatTimeDetailed(targetGlobalTime);
-      drawMergeWaveform();
-    });
-
-    mergeSeekSlider.addEventListener('change', () => {
-      const targetGlobalTime = parseFloat(mergeSeekSlider.value) || 0;
-      isScrubbingMerge = false;
-      seekMergeToGlobalTime(targetGlobalTime);
-    });
-
     // Tương tác nhấn và kéo trực tiếp trên sóng âm (Waveform Canvas)
     let isDraggingWaveform = false;
     const getWaveformTimeFromEvent = (e) => {
@@ -1279,26 +1305,23 @@
       isDraggingWaveform = true;
       isScrubbingMerge = true;
       mergeWaveformCanvas.setPointerCapture(e.pointerId);
-      const t = getWaveformTimeFromEvent(e);
-      mergeSeekSlider.value = t;
-      mergeCurrentTimeEl.textContent = formatTimeDetailed(t);
+      scrubbingMergeTime = getWaveformTimeFromEvent(e);
+      mergeCurrentTimeEl.textContent = formatTimeDetailed(scrubbingMergeTime);
       drawMergeWaveform();
     });
 
     mergeWaveformCanvas.addEventListener('pointermove', (e) => {
       if (!isDraggingWaveform) return;
-      const t = getWaveformTimeFromEvent(e);
-      mergeSeekSlider.value = t;
-      mergeCurrentTimeEl.textContent = formatTimeDetailed(t);
+      scrubbingMergeTime = getWaveformTimeFromEvent(e);
+      mergeCurrentTimeEl.textContent = formatTimeDetailed(scrubbingMergeTime);
       drawMergeWaveform();
     });
 
-    const finishWaveformDrag = (e) => {
+    const finishWaveformDrag = () => {
       if (!isDraggingWaveform) return;
       isDraggingWaveform = false;
       isScrubbingMerge = false;
-      const t = parseFloat(mergeSeekSlider.value) || 0;
-      seekMergeToGlobalTime(t);
+      seekMergeToGlobalTime(scrubbingMergeTime);
     };
 
     mergeWaveformCanvas.addEventListener('pointerup', finishWaveformDrag);
@@ -1333,12 +1356,15 @@
         const li = document.createElement('li');
         li.setAttribute('data-uid', file._uid);
         li.className = "flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 transition";
-        const durText = file._duration > 0 ? formatTimeDetailed(file._duration) : 'Đang đọc...';
+        const isItemLoading = !file._peaks && !file._peakError;
+        const durText = isItemLoading ? 'Đang đọc & giải mã âm thanh...' : (file._duration > 0 ? formatTimeDetailed(file._duration) : '00:00:00.000');
         li.innerHTML = `
           <div class="flex items-center gap-3 overflow-hidden w-full mr-2">
             <i class="fa-solid fa-grip-lines text-slate-500 cursor-grab hover:text-slate-300 drag-handle p-2" title="Kéo để sắp xếp"></i>
             <span class="index-badge w-7 h-7 flex-shrink-0 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center text-xs font-bold">${idx + 1}</span>
-            <i class="fa-solid fa-music text-indigo-400 flex-shrink-0"></i>
+            <span class="item-icon-slot flex items-center justify-center flex-shrink-0">
+              <i class="fa-solid fa-music text-indigo-400 flex-shrink-0"></i>
+            </span>
             <div class="overflow-hidden flex-1">
               <span class="text-sm font-medium truncate text-slate-200 block" title="${file.name}">${file.name}</span>
               <span class="item-duration text-xs text-slate-400 font-mono" data-dur-uid="${file._uid}">${durText}</span>
@@ -1385,8 +1411,6 @@
         const audioBuf = await actx.decodeAudioData(arrayBuf);
         if (!file._duration || file._duration <= 0) {
           file._duration = audioBuf.duration;
-          const durEl = mergeListEl.querySelector(`[data-dur-uid="${file._uid}"]`);
-          if (durEl) durEl.textContent = formatTimeDetailed(file._duration);
         }
 
         const numPeaks = 1000;
@@ -1418,6 +1442,8 @@
         syncMergePlayerUI();
       } catch (e) {
         console.error("Không thể tạo sóng âm cho tệp:", file.name, e);
+        file._peakError = true;
+        syncMergePlayerUI();
       }
     };
 
@@ -1433,12 +1459,11 @@
       file._audio = audio;
       file._duration = 0;
       file._peaks = null;
+      file._peakError = false;
 
       audio.addEventListener('loadedmetadata', () => {
         if (Number.isFinite(audio.duration) && audio.duration > 0) {
           file._duration = audio.duration;
-          const durEl = mergeListEl.querySelector(`[data-dur-uid="${uid}"]`);
-          if (durEl) durEl.textContent = formatTimeDetailed(file._duration);
           syncMergePlayerUI();
         }
       });
