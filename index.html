@@ -182,8 +182,20 @@
             <div class="hidden sm:block text-xs text-slate-400"><span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Ctrl + Lăn chuột</span> để zoom</div>
           </div>
           
-          <div id="waveform-container" class="relative w-full bg-slate-950/90 rounded-xl p-2 border border-slate-800/70 select-none overflow-hidden">
+          <div id="waveform-container" class="relative w-full bg-slate-950/90 rounded-xl p-2 border border-slate-800/70 select-none overflow-hidden min-h-[160px]">
             <div id="waveform" class="relative w-full min-h-[160px]"></div>
+
+            <!-- In-Waveform Loading Overlay (giống tab ghép nhạc) -->
+            <div id="trim-waveform-loader" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-20 transition-all">
+              <div class="relative w-11 h-11 flex-shrink-0">
+                <div class="w-11 h-11 rounded-full border-4 border-slate-800 border-t-indigo-500 animate-spin"></div>
+                <i class="fa-solid fa-music absolute inset-0 flex items-center justify-center text-indigo-400 text-xs animate-pulse"></i>
+              </div>
+              <div class="text-center px-4">
+                <p class="text-xs font-semibold text-indigo-300">Đang đọc & giải mã âm thanh...</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Sẽ mất vài giây đối với file lớn</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -594,6 +606,8 @@
     };
 
     window.closeTrimFile = () => {
+      const trimLoader = document.getElementById('trim-waveform-loader');
+      if (trimLoader) trimLoader.classList.add('hidden');
       if(wavesurfer) {
         wavesurfer.destroy();
         wavesurfer = null;
@@ -612,7 +626,14 @@
       if (!file) return;
       currentFileName = file.name.replace(/\.[^/.]+$/, "");
       document.getElementById('trim-track-name').textContent = file.name;
-      toggleLoading(true, "Đang đọc & giải mã âm thanh...", "Sẽ mất vài giây đối với file lớn");
+      document.getElementById('trim-track-meta').textContent = "Đang đọc & giải mã âm thanh...";
+      document.getElementById('trim-current-time').textContent = "00:00:00.000";
+
+      // Chuyển sang panel chỉnh sửa và hiển thị spinner ngay trong khung sóng âm
+      document.getElementById('trim-drop-zone').classList.add('hidden');
+      document.getElementById('trim-editor-panel').classList.remove('hidden');
+      const trimLoader = document.getElementById('trim-waveform-loader');
+      if (trimLoader) trimLoader.classList.remove('hidden');
       
       const actx = getAudioContext();
       try {
@@ -642,6 +663,7 @@
 
         // HACK: Can thiệp trực tiếp vào Shadow DOM của WaveSurfer để sửa lỗi thanh cuộn mặc định của OS
         wavesurfer.on('ready', () => {
+          if (trimLoader) trimLoader.classList.add('hidden');
           const wsContainer = document.getElementById('waveform');
           if (wsContainer && wsContainer.shadowRoot) {
             const shadowStyle = document.createElement('style');
@@ -675,10 +697,13 @@
           activeRegion = wsRegions.addRegion({ start: start, end: end, color: 'rgba(99, 102, 241, 0.28)', drag: true, resize: true });
           syncInputs(activeRegion);
           
-          document.getElementById('trim-drop-zone').classList.add('hidden');
-          document.getElementById('trim-editor-panel').classList.remove('hidden');
-          toggleLoading(false);
           showToast("Đã tải tệp thành công!");
+        });
+
+        wavesurfer.on('error', err => {
+          console.error(err);
+          if (trimLoader) trimLoader.classList.add('hidden');
+          showToast("Lỗi tải tệp âm thanh!", true);
         });
         
         wavesurfer.on('timeupdate', t => document.getElementById('trim-current-time').textContent = formatTimeDetailed(t));
@@ -688,7 +713,11 @@
         wavesurfer.load(fileUrl);
       } catch(e) {
         console.error(e);
-        toggleLoading(false);
+        if (trimLoader) trimLoader.classList.add('hidden');
+        if (!originalAudioBuffer) {
+          document.getElementById('trim-editor-panel').classList.add('hidden');
+          document.getElementById('trim-drop-zone').classList.remove('hidden');
+        }
         showToast("Lỗi giải mã audio. Thử file khác!", true);
       }
     }
