@@ -224,7 +224,7 @@
             <h3 class="text-sm font-bold text-slate-200"><i class="fa-solid fa-list-ul text-indigo-400 mr-2"></i>Danh sách đoạn cắt</h3>
             <span id="cut-count-badge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
           </div>
-          <ul id="cut-list-items" class="space-y-2 max-h-48 overflow-y-auto pr-2">
+          <ul id="cut-list-items" class="space-y-2 max-h-[calc(100vh-900px)] overflow-y-auto pr-2">
             <!-- Items injected via JS -->
           </ul>
         </div>
@@ -250,28 +250,6 @@
 
     <!-- TAB 2: GHÉP NHẠC (MERGER) -->
     <div id="tab-merge" class="tab-content space-y-6">
-      <div class="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
-          <div>
-            <h2 class="text-lg font-bold text-slate-200">Danh sách tệp tin cần ghép</h2>
-            <p class="text-sm text-slate-400">Kéo thả để sắp xếp lại thứ tự. Các tệp sẽ được nối tiếp từ trên xuống.</p>
-          </div>
-          <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium text-sm shadow-md transition">
-            <i class="fa-solid fa-plus"></i> Thêm tệp
-            <input type="file" id="merge-audio-input" accept="audio/*" multiple class="hidden">
-          </label>
-        </div>
-
-        <div id="merge-drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-950/50 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition">
-          <i class="fa-solid fa-photo-film text-3xl text-indigo-400 mb-2"></i>
-          <p class="text-sm font-semibold text-slate-300">Kéo thả nhiều file âm thanh vào đây</p>
-        </div>
-
-        <ul id="merge-file-list" class="space-y-2 hidden">
-          <!-- List items injected via JS -->
-        </ul>
-      </div>
-
       <!-- Merge Preview Player Panel -->
       <div id="merge-preview-panel" class="hidden bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -303,6 +281,28 @@
           <canvas id="merge-waveform-canvas" class="w-full h-[140px] block cursor-pointer"></canvas>
           <div id="merge-waveform-loaders" class="pointer-events-none absolute inset-2 bottom-[24px] overflow-hidden"></div>
         </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
+          <div>
+            <h2 class="text-lg font-bold text-slate-200">Danh sách tệp tin cần ghép</h2>
+            <p class="text-sm text-slate-400">Kéo thả để sắp xếp lại thứ tự. Các tệp sẽ được nối tiếp từ trên xuống.</p>
+          </div>
+          <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-medium text-sm shadow-md transition">
+            <i class="fa-solid fa-plus"></i> Thêm tệp
+            <input type="file" id="merge-audio-input" accept="audio/*" multiple class="hidden">
+          </label>
+        </div>
+
+        <div id="merge-drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-950/50 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition">
+          <i class="fa-solid fa-photo-film text-3xl text-indigo-400 mb-2"></i>
+          <p class="text-sm font-semibold text-slate-300">Kéo thả nhiều file âm thanh vào đây</p>
+        </div>
+
+        <ul id="merge-file-list" class="space-y-1.5 max-h-[calc(100vh-650px)] overflow-y-auto">
+          <!-- List items injected via JS -->
+        </ul>
       </div>
 
       <div class="flex flex-col sm:flex-row justify-end items-center gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
