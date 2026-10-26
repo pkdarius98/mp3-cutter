@@ -188,7 +188,7 @@
           <div id="waveform-container" class="relative w-full bg-slate-950/90 rounded-xl p-2 border border-slate-800/70 select-none overflow-hidden min-h-[160px]">
             <div id="waveform" class="relative w-full min-h-[160px]"></div>
 
-            <!-- In-Waveform Loading Overlay (giống tab ghép nhạc) -->
+            <!-- In-Waveform Loading Overlay -->
             <div id="trim-waveform-loader" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-20 transition-all">
               <div class="relative w-11 h-11 flex-shrink-0">
                 <div class="w-11 h-11 rounded-full border-4 border-slate-800 border-t-indigo-500 animate-spin"></div>
@@ -259,8 +259,7 @@
 
         <!-- Export Toolbar -->
         <div class="flex flex-col lg:flex-row justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div class="flex flex-wrap gap-2">
-          </div>
+          <div class="flex flex-wrap gap-2"></div>
           <div class="flex flex-wrap items-center justify-end gap-3 w-full lg:w-auto">
             <select id="trim-export-format" class="bg-slate-950 border border-slate-700 text-indigo-300 text-sm rounded-xl px-3 py-2.5 outline-none flex-1 lg:flex-none">
               <option value="wav">WAV (Gốc PCM)</option>
@@ -321,6 +320,54 @@
             <i class="fa-solid fa-plus"></i> Thêm tệp
             <input type="file" id="merge-audio-input" accept="audio/*" multiple class="hidden">
           </label>
+        </div>
+
+        <!-- Bộ điều khiển khoảng lặng (Silence Gap) -->
+        <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-3">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-indigo-600/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-volume-xmark text-sm"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                  Khoảng lặng cuối mỗi tệp
+                  <span class="text-[11px] font-normal text-indigo-300 bg-indigo-950/80 border border-indigo-800/60 px-2 py-0.5 rounded-full">Chèn khoảng nghỉ</span>
+                </h3>
+                <p class="text-xs text-slate-400">Thêm thời gian im lặng vào cuối các tệp khi ghép</p>
+              </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 focus-within:border-indigo-500 transition">
+                <span class="text-xs text-slate-400 mr-2 flex items-center gap-1">
+                  <i class="fa-regular fa-clock text-indigo-400 text-[11px]"></i> Cài đặt:
+                </span>
+                <input type="number" id="merge-global-silence" min="0" max="60" step="0.5" value="0" class="w-14 bg-transparent text-center font-mono text-sm text-indigo-300 font-bold focus:outline-none" placeholder="0">
+                <span class="text-xs text-slate-400 ml-1">giây</span>
+              </div>
+
+              <div class="inline-flex rounded-lg p-0.5 bg-slate-900 border border-slate-800">
+                <button type="button" onclick="setGlobalSilence(0)" class="silence-preset px-2.5 py-1 text-xs rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition">0s</button>
+                <button type="button" onclick="setGlobalSilence(1)" class="silence-preset px-2.5 py-1 text-xs rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition">1s</button>
+                <button type="button" onclick="setGlobalSilence(2)" class="silence-preset px-2.5 py-1 text-xs rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition">2s</button>
+                <button type="button" onclick="setGlobalSilence(3)" class="silence-preset px-2.5 py-1 text-xs rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition">3s</button>
+                <button type="button" onclick="setGlobalSilence(5)" class="silence-preset px-2.5 py-1 text-xs rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition">5s</button>
+              </div>
+
+              <button type="button" id="btn-apply-silence-all" onclick="applySilenceToAll()" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 hover:border-indigo-500 rounded-xl text-xs font-medium transition flex items-center gap-1.5 active:scale-95 shadow-sm">
+                <i class="fa-solid fa-arrows-rotate text-[11px]"></i> Áp dụng tất cả
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs text-slate-400">
+            <label class="flex items-center gap-2 cursor-pointer select-none hover:text-slate-200 transition">
+              <input type="checkbox" id="merge-include-last-silence" checked onchange="handleIncludeLastChange()" class="rounded border-slate-700 text-indigo-600 focus:ring-0 bg-slate-900 cursor-pointer">
+              <span>Thêm khoảng lặng vào cuối cả tệp cuối cùng</span>
+            </label>
+            <span class="text-[11px] text-slate-500 hidden sm:inline"><i class="fa-solid fa-circle-info mr-1 text-indigo-400"></i>Có thể tùy chỉnh khoảng lặng riêng cho từng tệp bên dưới</span>
+          </div>
         </div>
 
         <div id="merge-drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500/80 bg-slate-950/50 rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition">
@@ -708,7 +755,6 @@
       document.getElementById('trim-track-meta').textContent = "Đang đọc & giải mã âm thanh...";
       document.getElementById('trim-current-time').textContent = "00:00:00.000";
 
-      // Chuyển sang panel chỉnh sửa và hiển thị spinner ngay trong khung sóng âm
       document.getElementById('trim-drop-zone').classList.add('hidden');
       document.getElementById('trim-editor-panel').classList.remove('hidden');
       const trimLoader = document.getElementById('trim-waveform-loader');
@@ -768,7 +814,6 @@
           wsRegions.clearRegions();
           cutItems = []; cutIdCounter = 1; renderCutList();
           
-          // Yêu cầu: Vùng chọn mặc định từ 0 giây tới 10 giây (hoặc ít hơn nếu file ngắn)
           const regionDuration = Math.min(10, duration);
           const start = 0;
           const end = regionDuration;
@@ -776,7 +821,6 @@
           activeRegion = wsRegions.addRegion({ start: start, end: end, color: 'rgba(99, 102, 241, 0.28)', drag: true, resize: true });
           syncInputs(activeRegion);
 
-          // Bật tính năng kéo chuột trên sóng âm để chọn vùng thời gian (A -> B)
           wsRegions.enableDragSelection({
             color: 'rgba(99, 102, 241, 0.28)',
             drag: true,
@@ -786,7 +830,6 @@
           showToast("Đã tải tệp thành công!");
         });
 
-        // Bắt sự kiện khi kéo chuột xong tạo vùng chọn mới
         wsRegions.on('region-created', (newRegion) => {
           if (newRegion.end - newRegion.start < 0.1) {
             newRegion.remove();
@@ -911,7 +954,6 @@
 
             let blob = isWav ? encodeAudioBufferToWav(slicedBuf) : encodeAudioBufferToMp3(slicedBuf, kbps);
             
-            // Clean filename characters
             let cleanName = item.name.replace(/[^a-zA-Z0-9\s-_]/g, '').trim().replace(/\s+/g, '_');
             zip.file(`${currentFileName}_${cleanName}.${ext}`, blob);
           }
@@ -930,6 +972,7 @@
       }, 100);
     };
 
+    // --- TAB 2: GHÉP NHẠC (MERGER) LOGIC ---
     let mergeFilesArray = [];
     const mergeListEl = document.getElementById('merge-file-list');
     const mergeDropZone = document.getElementById('merge-drop-zone');
@@ -953,12 +996,59 @@
     let scrubbingMergeTime = 0;
     let mergeRafId = null;
 
-    const getTotalMergeDuration = () => {
-      return mergeFilesArray.reduce((sum, f) => sum + (f._duration || 0), 0);
+    // Trạng thái cho khoảng lặng trong Preview
+    let isMergeInSilence = false;
+    let silenceStartPerfTime = 0;
+    let silenceResumeOffset = 0;
+    let silenceDurationNeeded = 0;
+
+    // Hàm lấy thời gian im lặng hiệu lực của 1 tệp (tính đến tùy chọn tệp cuối cùng)
+    const getEffectiveSilence = (file) => {
+      if (!file) return 0;
+      const includeLast = document.getElementById('merge-include-last-silence')?.checked ?? true;
+      const isLast = mergeFilesArray[mergeFilesArray.length - 1] === file;
+      if (isLast && !includeLast) return 0;
+      return Math.max(0, parseFloat(file._silence) || 0);
     };
 
-    // Thời lượng hiển thị trên sóng âm (đảm bảo file đang tải vẫn có khung hiển thị spinner)
-    const getVisualDuration = (file) => {
+    window.setGlobalSilence = (sec) => {
+      const input = document.getElementById('merge-global-silence');
+      if (input) input.value = sec;
+      applySilenceToAll();
+    };
+
+    window.applySilenceToAll = () => {
+      const input = document.getElementById('merge-global-silence');
+      const val = Math.max(0, parseFloat(input ? input.value : 0) || 0);
+      if (input) input.value = val;
+      mergeFilesArray.forEach(f => { f._silence = val; });
+      
+      document.querySelectorAll('.file-silence-input').forEach(inp => {
+        inp.value = val;
+      });
+      syncMergePlayerUI();
+      showToast(`Đã áp dụng khoảng lặng ${val}s cho tất cả các tệp!`);
+    };
+
+    window.updateFileSilence = (uid, val) => {
+      const target = mergeFilesArray.find(f => f._uid === uid);
+      if (target) {
+        target._silence = Math.max(0, parseFloat(val) || 0);
+        syncMergePlayerUI();
+      }
+    };
+
+    window.handleIncludeLastChange = () => {
+      syncMergePlayerUI();
+    };
+
+    // Lắng nghe thay đổi trên ô cài đặt mặc định để cập nhật cho các lần thêm mới
+    document.getElementById('merge-global-silence')?.addEventListener('change', (e) => {
+      const val = Math.max(0, parseFloat(e.target.value) || 0);
+      e.target.value = val;
+    });
+
+    const getAudioVisualDuration = (file) => {
       if (file._duration && file._duration > 0) return file._duration;
       const loadedFiles = mergeFilesArray.filter(f => f._duration > 0);
       if (loadedFiles.length > 0) {
@@ -966,6 +1056,14 @@
         return Math.max(10, avg);
       }
       return 30;
+    };
+
+    const getVisualDuration = (file) => {
+      return getAudioVisualDuration(file) + getEffectiveSilence(file);
+    };
+
+    const getTotalMergeDuration = () => {
+      return mergeFilesArray.reduce((sum, f) => sum + (f._duration || 0) + getEffectiveSilence(f), 0);
     };
 
     const getTotalVisualDuration = () => {
@@ -976,7 +1074,7 @@
       let elapsed = 0;
       for (const f of mergeFilesArray) {
         if (f === item) break;
-        elapsed += (f._duration || 0);
+        elapsed += (f._duration || 0) + getEffectiveSilence(f);
       }
       return elapsed;
     };
@@ -986,7 +1084,15 @@
         return scrubbingMergeTime;
       }
       if (activeMergeItem && mergeFilesArray.includes(activeMergeItem)) {
-        return getElapsedBeforeItem(activeMergeItem) + (activeMergeItem._audio ? activeMergeItem._audio.currentTime : 0);
+        const elapsedBefore = getElapsedBeforeItem(activeMergeItem);
+        if (isMergeInSilence) {
+          const sElapsed = isMergePlaying
+            ? (silenceResumeOffset + (performance.now() - silenceStartPerfTime) / 1000)
+            : silenceResumeOffset;
+          const effectiveSil = getEffectiveSilence(activeMergeItem);
+          return elapsedBefore + (activeMergeItem._duration || 0) + Math.min(sElapsed, effectiveSil);
+        }
+        return elapsedBefore + (activeMergeItem._audio ? activeMergeItem._audio.currentTime : 0);
       }
       return 0;
     };
@@ -1073,7 +1179,7 @@
         return;
       }
 
-      // Vẽ nền phân vùng từng bài & vạch ngăn cách
+      // Vẽ nền phân vùng từng bài, phần âm thanh và khoảng lặng
       let accDur = 0;
       const bgTints = [
         'rgba(99, 102, 241, 0.04)',
@@ -1083,19 +1189,54 @@
       ];
 
       mergeFilesArray.forEach((file, idx) => {
-        const dur = getVisualDuration(file);
+        const audioVisDur = getAudioVisualDuration(file);
+        const silenceDur = getEffectiveSilence(file);
+        const totalSegDur = audioVisDur + silenceDur;
+
         const startX = (accDur / totalVisDur) * width;
-        const segW = (dur / totalVisDur) * width;
+        const audioW = (audioVisDur / totalVisDur) * width;
+        const silenceW = (silenceDur / totalVisDur) * width;
 
-        ctx.fillStyle = (activeMergeItem === file && isMergePlaying)
-          ? 'rgba(99, 102, 241, 0.13)'
+        // Nền phần âm thanh
+        ctx.fillStyle = (activeMergeItem === file && isMergePlaying && !isMergeInSilence)
+          ? 'rgba(99, 102, 241, 0.15)'
           : bgTints[idx % bgTints.length];
-        ctx.fillRect(startX, 0, segW, waveAreaHeight);
+        ctx.fillRect(startX, 0, audioW, waveAreaHeight);
 
-        accDur += dur;
+        // Nền phần khoảng lặng (nếu có)
+        if (silenceDur > 0 && silenceW > 0) {
+          const silStartX = startX + audioW;
+          ctx.fillStyle = (activeMergeItem === file && isMergePlaying && isMergeInSilence)
+            ? 'rgba(245, 158, 11, 0.18)'
+            : 'rgba(2, 6, 23, 0.65)';
+          ctx.fillRect(silStartX, 0, silenceW, waveAreaHeight);
+
+          // Đường viền phân cách mờ giữa audio và silence
+          ctx.save();
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath();
+          ctx.moveTo(silStartX, 0);
+          ctx.lineTo(silStartX, waveAreaHeight);
+          ctx.stroke();
+          ctx.restore();
+
+          // Nhãn khoảng lặng nếu độ rộng đủ
+          if (silenceW >= 24) {
+            ctx.save();
+            ctx.font = '600 10px monospace';
+            ctx.fillStyle = (activeMergeItem === file && isMergePlaying && isMergeInSilence) ? '#fcd34d' : '#94a3b8';
+            ctx.textAlign = 'center';
+            const labelText = silenceW > 50 ? `Im lặng +${silenceDur.toFixed(1)}s` : `+${silenceDur.toFixed(1)}s`;
+            ctx.fillText(labelText, silStartX + silenceW / 2, centerY - 6);
+            ctx.restore();
+          }
+        }
+
+        accDur += totalSegDur;
       });
 
-      // Vẽ các cột sóng âm (chỉ vẽ cho các file đã giải mã xong, không vẽ hình mặc định)
+      // Vẽ các cột sóng âm & vạch im lặng
       const barWidth = 2;
       const barGap = 1;
       const stepPx = barWidth + barGap;
@@ -1108,24 +1249,36 @@
         let acc = 0;
         let targetFile = null;
         let localTime = 0;
-        let fileVisDur = 0;
+        let audioVisDur = 0;
+
         for (const f of mergeFilesArray) {
-          const d = getVisualDuration(f);
-          if (timeAtX <= acc + d) {
+          const aDur = getAudioVisualDuration(f);
+          const sDur = getEffectiveSilence(f);
+          const totalD = aDur + sDur;
+          if (timeAtX <= acc + totalD) {
             targetFile = f;
             localTime = timeAtX - acc;
-            fileVisDur = d;
+            audioVisDur = aDur;
             break;
           }
-          acc += d;
+          acc += totalD;
         }
 
-        if (!targetFile || !targetFile._peaks || fileVisDur <= 0) {
-          // Đang tải sóng âm: để trống vùng này cho Spinner Loading hiển thị
+        if (!targetFile) continue;
+
+        // Nếu x rơi vào phần khoảng lặng của targetFile
+        if (localTime > audioVisDur) {
+          ctx.fillStyle = x <= progressX ? '#818cf8' : '#334155';
+          ctx.fillRect(x, centerY - 1, barWidth, 2);
           continue;
         }
 
-        const ratio = Math.max(0, Math.min(0.9999, localTime / fileVisDur));
+        if (!targetFile._peaks || audioVisDur <= 0) {
+          // Đang tải sóng âm
+          continue;
+        }
+
+        const ratio = Math.max(0, Math.min(0.9999, localTime / audioVisDur));
         const peakIdx = Math.floor(ratio * targetFile._peaks.length);
         const amp = Math.max(0.04, targetFile._peaks[peakIdx]);
 
@@ -1137,9 +1290,12 @@
       // Vẽ đường ranh giới chuyển bài & nhãn tên bài trên sóng âm
       accDur = 0;
       mergeFilesArray.forEach((file, idx) => {
-        const dur = getVisualDuration(file);
+        const audioVisDur = getAudioVisualDuration(file);
+        const silenceDur = getEffectiveSilence(file);
+        const totalSegDur = audioVisDur + silenceDur;
+
         const startX = (accDur / totalVisDur) * width;
-        const segW = (dur / totalVisDur) * width;
+        const segW = (totalSegDur / totalVisDur) * width;
 
         if (idx > 0) {
           ctx.save();
@@ -1170,7 +1326,7 @@
           ctx.restore();
         }
 
-        accDur += dur;
+        accDur += totalSegDur;
       });
 
       // Vẽ thanh Timeline phía dưới
@@ -1206,7 +1362,7 @@
         }
       }
 
-      // Vẽ con trỏ Playhead màu đỏ (#f43f5e) giống WaveSurfer
+      // Vẽ con trỏ Playhead màu đỏ (#f43f5e)
       ctx.strokeStyle = '#f43f5e';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -1228,6 +1384,28 @@
     const startMergeAnimLoop = () => {
       if (mergeRafId) cancelAnimationFrame(mergeRafId);
       const step = () => {
+        if (isMergePlaying && isMergeInSilence) {
+          const currentSilenceElapsed = silenceResumeOffset + (performance.now() - silenceStartPerfTime) / 1000;
+          if (currentSilenceElapsed >= silenceDurationNeeded) {
+            isMergeInSilence = false;
+            silenceResumeOffset = 0;
+            if (mergePlayMode === 'all') {
+              const currentIndex = mergeFilesArray.indexOf(activeMergeItem);
+              if (currentIndex !== -1 && currentIndex + 1 < mergeFilesArray.length) {
+                const nextFile = mergeFilesArray[currentIndex + 1];
+                playMergeFromItem(nextFile._uid, 'all', 0);
+                return;
+              } else {
+                stopMergePreview();
+                return;
+              }
+            } else {
+              stopMergePreview();
+              return;
+            }
+          }
+        }
+
         updateMergeTimeUI();
         drawMergeWaveform();
         if (isMergePlaying) {
@@ -1263,17 +1441,24 @@
       if (isMergePlaying) {
         mergePlayIcon.className = 'fa-solid fa-pause';
         mergePlayText.textContent = 'Tạm dừng';
-        mergeStatusIcon.className = 'fa-solid fa-wave-square text-emerald-400 animate-pulse';
+        mergeStatusIcon.className = isMergeInSilence 
+          ? 'fa-solid fa-volume-xmark text-amber-400 animate-pulse'
+          : 'fa-solid fa-wave-square text-emerald-400 animate-pulse';
       } else {
         mergePlayIcon.className = 'fa-solid fa-play';
         mergePlayText.textContent = 'Nghe thử bản ghép';
         mergeStatusIcon.className = 'fa-solid fa-wave-square text-indigo-400';
       }
 
-      if (activeMergeItem && mergeFilesArray.includes(activeMergeItem) && (isMergePlaying || (activeMergeItem._audio && activeMergeItem._audio.currentTime > 0))) {
+      if (activeMergeItem && mergeFilesArray.includes(activeMergeItem) && (isMergePlaying || isMergeInSilence || (activeMergeItem._audio && activeMergeItem._audio.currentTime > 0))) {
         const idx = mergeFilesArray.indexOf(activeMergeItem);
-        const prefix = mergePlayMode === 'single' ? 'Nghe thử tệp' : 'Đang phát';
-        mergeNowPlaying.textContent = `${prefix} [#${idx + 1}/${mergeFilesArray.length}]: ${activeMergeItem.name}`;
+        if (isMergeInSilence) {
+          const silSec = getEffectiveSilence(activeMergeItem);
+          mergeNowPlaying.textContent = `Khoảng lặng [#${idx + 1}/${mergeFilesArray.length}]: ${activeMergeItem.name} (${silSec.toFixed(1)}s)`;
+        } else {
+          const prefix = mergePlayMode === 'single' ? 'Nghe thử tệp' : 'Đang phát';
+          mergeNowPlaying.textContent = `${prefix} [#${idx + 1}/${mergeFilesArray.length}]: ${activeMergeItem.name}`;
+        }
       } else {
         mergeNowPlaying.textContent = `Sẵn sàng nghe thử (${mergeFilesArray.length} tệp)`;
       }
@@ -1284,7 +1469,7 @@
         const uid = li.getAttribute('data-uid');
         const fileObj = mergeFilesArray.find(f => f._uid === uid);
         const isItemLoading = fileObj && !fileObj._peaks && !fileObj._peakError;
-        const isItemPlaying = isMergePlaying && activeMergeItem && activeMergeItem._uid === uid;
+        const isItemPlaying = (isMergePlaying || isMergeInSilence) && activeMergeItem && activeMergeItem._uid === uid;
         const badge = li.querySelector('.index-badge');
         if (badge) badge.textContent = index + 1;
 
@@ -1303,6 +1488,8 @@
                 <i class="fa-solid fa-music absolute inset-0 flex items-center justify-center text-indigo-400 text-[8px] animate-pulse"></i>
               </div>
             `;
+          } else if (isItemPlaying && isMergeInSilence) {
+            iconSlot.innerHTML = `<i class="fa-solid fa-volume-xmark text-amber-400 flex-shrink-0 animate-pulse" title="Đang trong khoảng lặng"></i>`;
           } else {
             iconSlot.innerHTML = `<i class="fa-solid fa-music text-indigo-400 flex-shrink-0"></i>`;
           }
@@ -1314,7 +1501,9 @@
             durEl.textContent = 'Đang đọc & giải mã âm thanh...';
             durEl.className = 'item-duration text-xs text-indigo-400 font-medium animate-pulse';
           } else {
-            durEl.textContent = fileObj._duration > 0 ? formatTimeDetailed(fileObj._duration) : '00:00:00.000';
+            const sil = getEffectiveSilence(fileObj);
+            const silText = sil > 0 ? ` (+${sil}s im lặng)` : '';
+            durEl.textContent = (fileObj._duration > 0 ? formatTimeDetailed(fileObj._duration) : '00:00:00.000') + silText;
             durEl.className = 'item-duration text-xs text-slate-400 font-mono';
           }
         }
@@ -1337,6 +1526,9 @@
     };
 
     const pauseMergePreview = () => {
+      if (isMergeInSilence) {
+        silenceResumeOffset += (performance.now() - silenceStartPerfTime) / 1000;
+      }
       if (activeMergeItem && activeMergeItem._audio) {
         activeMergeItem._audio.pause();
       }
@@ -1352,6 +1544,9 @@
           f._audio.currentTime = 0;
         }
       });
+      isMergeInSilence = false;
+      silenceResumeOffset = 0;
+      silenceDurationNeeded = 0;
       activeMergeItem = mergeFilesArray[0] || null;
       isMergePlaying = false;
       mergePlayMode = 'all';
@@ -1373,15 +1568,33 @@
 
       activeMergeItem = target;
       mergePlayMode = mode;
-      target._audio.currentTime = Math.max(0, Math.min(startOffset, (target._duration || 0) - 0.01));
-      target._audio.play().then(() => {
+      const audioDur = target._duration || 0;
+      const silence = getEffectiveSilence(target);
+
+      if (startOffset < audioDur) {
+        isMergeInSilence = false;
+        silenceResumeOffset = 0;
+        target._audio.currentTime = Math.max(0, startOffset);
+        target._audio.play().then(() => {
+          isMergePlaying = true;
+          syncMergePlayerUI();
+          startMergeAnimLoop();
+        }).catch(err => {
+          console.error(err);
+          showToast("Không thể phát tệp âm thanh này!", true);
+        });
+      } else {
+        // Nhảy vào khoảng lặng
+        target._audio.pause();
+        target._audio.currentTime = 0;
+        isMergeInSilence = true;
+        silenceDurationNeeded = silence;
+        silenceResumeOffset = Math.max(0, Math.min(startOffset - audioDur, silence));
+        silenceStartPerfTime = performance.now();
         isMergePlaying = true;
         syncMergePlayerUI();
         startMergeAnimLoop();
-      }).catch(err => {
-        console.error(err);
-        showToast("Không thể phát tệp âm thanh này!", true);
-      });
+      }
     };
 
     const seekMergeToGlobalTime = (targetGlobalTime) => {
@@ -1394,14 +1607,17 @@
       let localOffset = 0;
 
       for (const f of mergeFilesArray) {
-        const dur = f._duration || 0;
-        if (targetGlobalTime <= acc + dur) {
+        const itemTotalDur = (f._duration || 0) + getEffectiveSilence(f);
+        if (targetGlobalTime <= acc + itemTotalDur || f === mergeFilesArray[mergeFilesArray.length - 1]) {
           chosenFile = f;
           localOffset = Math.max(0, targetGlobalTime - acc);
           break;
         }
-        acc += dur;
+        acc += itemTotalDur;
       }
+
+      const audioDur = chosenFile._duration || 0;
+      const silence = getEffectiveSilence(chosenFile);
 
       if (isMergePlaying) {
         playMergeFromItem(chosenFile._uid, 'all', localOffset);
@@ -1414,8 +1630,22 @@
         });
         activeMergeItem = chosenFile;
         mergePlayMode = 'all';
-        if (chosenFile._audio) {
-          chosenFile._audio.currentTime = Math.min(localOffset, Math.max(0, (chosenFile._duration || 0) - 0.01));
+
+        if (localOffset < audioDur) {
+          isMergeInSilence = false;
+          silenceResumeOffset = 0;
+          if (chosenFile._audio) {
+            chosenFile._audio.currentTime = Math.min(localOffset, Math.max(0, audioDur - 0.01));
+          }
+        } else {
+          isMergeInSilence = true;
+          silenceDurationNeeded = silence;
+          silenceResumeOffset = Math.min(localOffset - audioDur, silence);
+          silenceStartPerfTime = performance.now();
+          if (chosenFile._audio) {
+            chosenFile._audio.pause();
+            chosenFile._audio.currentTime = 0;
+          }
         }
         syncMergePlayerUI();
       }
@@ -1444,10 +1674,18 @@
         const startItem = (activeMergeItem && mergeFilesArray.includes(activeMergeItem))
           ? activeMergeItem
           : mergeFilesArray[0];
-        const offset = (startItem._audio && startItem._audio.currentTime < (startItem._duration || 0) - 0.05)
-          ? startItem._audio.currentTime
-          : 0;
-        playMergeFromItem(startItem._uid, 'all', offset);
+        
+        if (isMergeInSilence) {
+          silenceStartPerfTime = performance.now();
+          isMergePlaying = true;
+          syncMergePlayerUI();
+          startMergeAnimLoop();
+        } else {
+          const offset = (startItem._audio && startItem._audio.currentTime < (startItem._duration || 0) - 0.05)
+            ? startItem._audio.currentTime
+            : 0;
+          playMergeFromItem(startItem._uid, 'all', offset);
+        }
       }
     };
 
@@ -1500,6 +1738,7 @@
           const movedItem = mergeFilesArray.splice(evt.oldIndex, 1)[0];
           mergeFilesArray.splice(evt.newIndex, 0, movedItem);
           syncMergePlayerUI();
+          renderMergeList();
         }
       });
     };
@@ -1521,20 +1760,28 @@
         li.setAttribute('data-uid', file._uid);
         li.className = "flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 transition";
         const isItemLoading = !file._peaks && !file._peakError;
-        const durText = isItemLoading ? 'Đang đọc & giải mã âm thanh...' : (file._duration > 0 ? formatTimeDetailed(file._duration) : '00:00:00.000');
+        const sil = getEffectiveSilence(file);
+        const silText = sil > 0 ? ` (+${sil}s im lặng)` : '';
+        const durText = isItemLoading ? 'Đang đọc & giải mã âm thanh...' : ((file._duration > 0 ? formatTimeDetailed(file._duration) : '00:00:00.000') + silText);
         li.innerHTML = `
-          <div class="flex items-center gap-3 overflow-hidden w-full mr-2">
+          <div class="flex items-center gap-3 overflow-hidden flex-1 mr-2 min-w-0">
             <i class="fa-solid fa-grip-lines text-slate-500 cursor-grab hover:text-slate-300 drag-handle p-2" title="Kéo để sắp xếp"></i>
             <span class="index-badge w-7 h-7 flex-shrink-0 bg-slate-800 text-slate-400 rounded-full flex items-center justify-center text-xs font-bold">${idx + 1}</span>
             <span class="item-icon-slot flex items-center justify-center flex-shrink-0">
               <i class="fa-solid fa-music text-indigo-400 flex-shrink-0"></i>
             </span>
-            <div class="overflow-hidden flex-1">
+            <div class="overflow-hidden flex-1 min-w-0">
               <span class="text-sm font-medium truncate text-slate-200 block" title="${file.name}">${file.name}</span>
               <span class="item-duration text-xs text-slate-400 font-mono" data-dur-uid="${file._uid}">${durText}</span>
             </div>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800 hover:border-slate-700 transition" title="Thời gian im lặng ở cuối tệp này">
+              <i class="fa-solid fa-volume-xmark text-slate-400 text-xs"></i>
+              <span class="text-xs text-slate-400 hidden sm:inline">Im lặng:</span>
+              <input type="number" min="0" max="60" step="0.5" value="${file._silence || 0}" onchange="updateFileSilence('${file._uid}', this.value)" class="file-silence-input w-12 bg-slate-950 border border-slate-700 text-center text-xs font-mono text-indigo-300 font-semibold rounded px-1 py-0.5 focus:outline-none focus:border-indigo-500">
+              <span class="text-xs text-slate-400 font-mono">s</span>
+            </div>
             <button onclick="toggleSingleMergeTrack('${file._uid}')" class="btn-item-preview w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition" title="Nghe thử tệp này"><i class="fa-solid fa-play"></i></button>
             <button onclick="removeMergeItem('${file._uid}')" class="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500 hover:text-white transition" title="Xóa tệp"><i class="fa-solid fa-trash-can"></i></button>
           </div>
@@ -1618,10 +1865,13 @@
       const audio = new Audio(url);
       audio.preload = 'auto';
 
+      const defaultSilence = Math.max(0, parseFloat(document.getElementById('merge-global-silence')?.value) || 0);
+
       file._uid = uid;
       file._url = url;
       file._audio = audio;
       file._duration = 0;
+      file._silence = defaultSilence;
       file._peaks = null;
       file._peakError = false;
 
@@ -1633,7 +1883,7 @@
       });
 
       audio.addEventListener('timeupdate', () => {
-        if (activeMergeItem === file) {
+        if (activeMergeItem === file && !isMergeInSilence) {
           updateMergeTimeUI();
           drawMergeWaveform();
         }
@@ -1642,18 +1892,29 @@
       audio.addEventListener('ended', () => {
         if (activeMergeItem !== file) return;
         audio.currentTime = 0;
-        if (mergePlayMode === 'all') {
-          const currentIndex = mergeFilesArray.indexOf(file);
-          if (currentIndex !== -1 && currentIndex + 1 < mergeFilesArray.length) {
-            const nextFile = mergeFilesArray[currentIndex + 1];
-            playMergeFromItem(nextFile._uid, 'all', 0);
-          } else {
-            stopMergePreview();
-          }
-        } else {
-          isMergePlaying = false;
-          stopMergeAnimLoop();
+        const silence = getEffectiveSilence(file);
+        if (silence > 0) {
+          isMergeInSilence = true;
+          silenceDurationNeeded = silence;
+          silenceResumeOffset = 0;
+          silenceStartPerfTime = performance.now();
           syncMergePlayerUI();
+        } else {
+          isMergeInSilence = false;
+          silenceResumeOffset = 0;
+          if (mergePlayMode === 'all') {
+            const currentIndex = mergeFilesArray.indexOf(file);
+            if (currentIndex !== -1 && currentIndex + 1 < mergeFilesArray.length) {
+              const nextFile = mergeFilesArray[currentIndex + 1];
+              playMergeFromItem(nextFile._uid, 'all', 0);
+            } else {
+              stopMergePreview();
+            }
+          } else {
+            isMergePlaying = false;
+            stopMergeAnimLoop();
+            syncMergePlayerUI();
+          }
         }
       });
 
@@ -1705,25 +1966,32 @@
             decodedBuffers.push(await actx.decodeAudioData(arrayBuf));
           }
 
-          document.getElementById('loading-sub-text').textContent = "Đang tổng hợp các track âm thanh...";
+          document.getElementById('loading-sub-text').textContent = "Đang tổng hợp các track âm thanh và khoảng lặng...";
           let totalLength = 0, maxChannels = 1;
-          const sRate = decodedBuffers[0].sampleRate; 
+          const sRate = actx.sampleRate || decodedBuffers[0].sampleRate; 
           
-          for(let b of decodedBuffers) {
-            totalLength += b.length;
+          for(let i=0; i<decodedBuffers.length; i++) {
+            const b = decodedBuffers[i];
+            const silenceSec = getEffectiveSilence(mergeFilesArray[i]);
+            const silenceFrames = Math.round(silenceSec * sRate);
+            totalLength += b.length + silenceFrames;
             if(b.numberOfChannels > maxChannels) maxChannels = b.numberOfChannels;
           }
 
           const mergedBuffer = actx.createBuffer(maxChannels, totalLength, sRate);
           let offset = 0;
 
-          for(let b of decodedBuffers) {
+          for(let i=0; i<decodedBuffers.length; i++) {
+            const b = decodedBuffers[i];
             for(let ch=0; ch<maxChannels; ch++) {
               const destChannel = mergedBuffer.getChannelData(ch);
               const srcChannel = b.getChannelData(ch < b.numberOfChannels ? ch : 0);
               destChannel.set(srcChannel, offset);
             }
             offset += b.length;
+            const silenceSec = getEffectiveSilence(mergeFilesArray[i]);
+            const silenceFrames = Math.round(silenceSec * sRate);
+            offset += silenceFrames;
           }
 
           document.getElementById('loading-sub-text').textContent = "Đang mã hóa định dạng xuất...";
